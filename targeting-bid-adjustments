@@ -1,13 +1,14 @@
 var MAX_INCREASE = 0.1
 var MAX_MIN_LEVEL = 0.9
-var CONVERSION_THRESHOLD = 25;
-var CONVERSION_VALUE = 50;
+var CONVERSION_THRESHOLD = 20;
+var CONVERSION_VALUE = 30;
 
 function main() { 
   //setAdGroupBids("ALL_TIME");
   
   setLocationBids("LAST_30_DAYS");
   setAdScheduleBids("LAST_30_DAYS");
+  setMobileBidModifier("LAST_30_DAYS");
 }
 
 
@@ -180,18 +181,82 @@ function setAdScheduleBids(dateRange) {
 
 
 // Mobile Bids
-function setMobileBidModifier() {
+function setMobileBidModifier(dateRange) {
+
   var campaignIterator = AdWordsApp.campaigns()
-      .withCondition('Name = "INSERT_CAMPAIGN_NAME_HERE"')
+      .forDateRange(dateRange)
+      .withCondition("Status = ENABLED")
+      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
       .get();
-  if (campaignIterator.hasNext()) {
+  
+  Logger.log(' ')
+  Logger.log('### ADJUST MOBILE TARGETING BIDS ###');
+  Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
+  
+  while (campaignIterator.hasNext()) {
     var campaign = campaignIterator.next();
-    // Retrieve the mobile target for campaign.
+    var stats = campaign.getStatsFor(dateRange);
+    var campaignConvRate = stats.getClickConversionRate();
+    
+    Logger.log(' ');
+    Logger.log('CAMPAIGN: ' + campaign.getName());
+    
+    var desktopTargetIterator = campaign.targeting().platforms().desktop().get();
+    var tabletTargetIterator = campaign.targeting().platforms().tablet().get();
     var mobileTargetIterator = campaign.targeting().platforms().mobile().get();
-    if (mobileTargetIterator.hasNext()) {
-      mobileTarget = mobileTargetIterator.next();
-      // Set the bid modifier for mobile platform.
-      mobileTarget.setBidModifier(1.5);
+      
+    if( desktopTargetIterator.hasNext()) {
+      var desktopTarget = desktopTargetIterator.next();
+      var desktopStats = desktopTarget.getStatsFor(dateRange);
+      var desktopConversionRate = desktopStats.getConversionRate();
+    
+      if( tabletTargetIterator.hasNext()) {
+        var tabletTarget = tabletTargetIterator.next();
+        var tabletStats = tabletTarget.getStatsFor(dateRange);
+        var tabletConversionRate = tabletStats.getConversionRate();
+        var tabletNewBidAdjustment = tabletConversionRate / desktopConversionRate;
+        var tabletOldBidAdjustment = tabletTarget.getBidModifier();
+             
+        if( tabletConversionRate > desktopConversionRate && tabletOldBidAdjustment < MAX_MIN_LEVEL ) {
+          if( tabletNewBidAdjustment > (tabletOldBidAdjustment + MAX_INCREASE) ) {
+            var newBidModifier = tabletOldBidAdjustment + MAX_INCREASE;
+            tabletTarget.setBidModifier(newBidModifier);           
+            Logger.log('*** UPDATE: Tablet Bid Modifer; '
+                 + 'Increase bid: from ' + tabletOldBidAdjustment + ' to ' + newBidModifier);            
+          }
+        } else if (tabletConversionRate < desktopConversionRate) {
+          if( tabletNewBidAdjustment < (tabletOldBidAdjustment - MAX_INCREASE) ) {
+            var newBidModifier = Math.max(Math.min(tabletOldBidAdjustment - MAX_INCREASE, 0.9),0.1);
+            tabletTarget.setBidModifier(newBidModifier);           
+            Logger.log('*** UPDATE: Tablet Bid Modifer; '
+                 + 'Lower bid: from ' + tabletOldBidAdjustment + ' to ' + newBidModifier);               
+          }          
+        }
+      }
+      
+      if( mobileTargetIterator.hasNext()) {
+        var mobileTarget = mobileTargetIterator.next();
+        var mobileStats = mobileTarget.getStatsFor(dateRange);
+        var mobileConversionRate = mobileStats.getConversionRate();
+        var mobileNewBidAdjustment = mobileConversionRate / desktopConversionRate;
+        var mobileOldBidAdjustment = mobileTarget.getBidModifier();
+                
+        if( mobileConversionRate > desktopConversionRate && mobileOldBidAdjustment < MAX_MIN_LEVEL ) {
+          if( mobileNewBidAdjustment > (mobileOldBidAdjustment + MAX_INCREASE) ) {
+            var newBidModifier = mobileOldBidAdjustment + MAX_INCREASE;
+            mobileTarget.setBidModifier(newBidModifier);           
+            Logger.log('*** UPDATE: Mobile Bid Modifer; '
+                 + 'Increase bid: from ' + mobileOldBidAdjustment + ' to ' + newBidModifier);            
+          }
+        } else if (mobileConversionRate < desktopConversionRate) {
+          if( mobileNewBidAdjustment < (mobileOldBidAdjustment - MAX_INCREASE) ) {
+            var newBidModifier = Math.max(Math.min(mobileOldBidAdjustment - MAX_INCREASE, 0.9),0.1);
+            mobileTarget.setBidModifier(newBidModifier);           
+            Logger.log('*** UPDATE: Mobile Bid Modifer; '
+                 + 'Lower bid: from ' + mobileOldBidAdjustment + ' to ' + newBidModifier);               
+          }          
+        }
+      }
     }
   }
 }
