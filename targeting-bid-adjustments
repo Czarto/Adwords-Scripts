@@ -224,7 +224,7 @@ function setMobileBidModifier(dateRange) {
             Logger.log('*** UPDATE: Tablet Bid Modifer; '
                  + 'Increase bid: from ' + tabletOldBidAdjustment + ' to ' + newBidModifier);            
           }
-        } else if (tabletConversionRate < desktopConversionRate) {
+        } else if (tabletConversionRate > 0 && tabletConversionRate < desktopConversionRate) {
           if( tabletNewBidAdjustment < (tabletOldBidAdjustment - MAX_INCREASE) ) {
             var newBidModifier = Math.max(Math.min(tabletOldBidAdjustment - MAX_INCREASE, 0.9),0.1);
             tabletTarget.setBidModifier(newBidModifier);           
@@ -248,7 +248,7 @@ function setMobileBidModifier(dateRange) {
             Logger.log('*** UPDATE: Mobile Bid Modifer; '
                  + 'Increase bid: from ' + mobileOldBidAdjustment + ' to ' + newBidModifier);            
           }
-        } else if (mobileConversionRate < desktopConversionRate) {
+        } else if (mobileConversionRate > 0 && mobileConversionRate < desktopConversionRate) {
           if( mobileNewBidAdjustment < (mobileOldBidAdjustment - MAX_INCREASE) ) {
             var newBidModifier = Math.max(Math.min(mobileOldBidAdjustment - MAX_INCREASE, 0.9),0.1);
             mobileTarget.setBidModifier(newBidModifier);           
