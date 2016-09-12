@@ -6,7 +6,7 @@ var CONVERSION_VALUE = 50;
 function main() { 
   //setAdGroupBids("ALL_TIME");
   
-  //setLocationBids("LAST_30_DAYS");
+  setLocationBids("LAST_30_DAYS");
   setAdScheduleBids("LAST_30_DAYS");
 }
 
@@ -28,7 +28,8 @@ function setLocationBids(dateRange) {
     var stats = campaign.getStatsFor(dateRange);
     var campaignConvRate = stats.getClickConversionRate();
     
-    // For each location with conversions > 25, calculate the required conversion rate.
+    Logger.log(' ');
+    Logger.log('CAMPAIGN: ' + campaign.getName());
     
     var locationIterator = campaign.targeting().targetedLocations().get();
 
@@ -44,9 +45,7 @@ function setLocationBids(dateRange) {
         var calculatedBidAdjustment = locationConvRate / campaignConvRate;
         var oldBidModifier = targetedLocation.getBidModifier();
         var locationName = targetedLocation.getName();
-        var locationCountryCode = targetedLocation.getCountryCode();
-        //Logger.log('Location name: ' + locationName  + ', country code: ' + locationCountryCode + ', bid modifier: ' + oldBidModifier);
-        
+        var locationCountryCode = targetedLocation.getCountryCode();        
 
         if( locationConversions > 0 ) {
         
@@ -55,9 +54,9 @@ function setLocationBids(dateRange) {
             if( calculatedBidAdjustment > (oldBidModifier + MAX_INCREASE) ) {
               var newBidModifier = oldBidModifier + MAX_INCREASE;
               targetedLocation.setBidModifier(newBidModifier);           
-              Logger.log('*** UPDATE *** Location name: ' + locationName 
-                   + ', country code: ' + locationCountryCode
-                   + ', bid modifier: ' + newBidModifier);
+              Logger.log('*** UPDATE *** Location name: ' + locationName
+                   + ', bid modifier: ' + newBidModifier
+                   + ', Better than average conversion rate, but negative bidding. Increase bid.');
             
             }
             
@@ -67,9 +66,8 @@ function setLocationBids(dateRange) {
               var newBidModifier = Math.max(Math.min(oldBidModifier - MAX_INCREASE, 0.9),0.1);
               targetedLocation.setBidModifier(newBidModifier);           
               Logger.log('*** UPDATE *** Location name: ' + locationName 
-                   + ', country code: ' + locationCountryCode
-                   + ', bid modifier: ' + newBidModifier);
-            
+                   + ', bid modifier: ' + newBidModifier
+                   + ' Bad CPA, decrease bids');            
             }          
           }
         
@@ -79,9 +77,8 @@ function setLocationBids(dateRange) {
               var newBidModifier = oldBidModifier + MAX_INCREASE;
               targetedLocation.setBidModifier(newBidModifier);           
               Logger.log('*** UPDATE *** Location name: ' + locationName 
-                   + ', country code: ' + locationCountryCode
-                   + ', bid modifier: ' + newBidModifier);
-            
+                   + ', bid modifier: ' + newBidModifier
+                   + ' Good CPA, increase bids');            
             } 
           }
         }
@@ -91,8 +88,8 @@ function setLocationBids(dateRange) {
               var newBidModifier = Math.max(Math.min(oldBidModifier - MAX_INCREASE, 0.9),0.1);
               targetedLocation.setBidModifier(newBidModifier);           
               Logger.log('*** UPDATE *** Location name: ' + locationName 
-                   + ', country code: ' + locationCountryCode
-                   + ', bid modifier: ' + newBidModifier);
+                   + ', bid modifier: ' + newBidModifier
+                   + ' zero conversions & high cost');
         }        
       }
     }
