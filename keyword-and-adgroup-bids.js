@@ -182,7 +182,7 @@ function GetKeywordSelector(dateRange) {
       .withCondition("AdGroupStatus = ENABLED");
   
   if( TAG_IGNORE.length > 0 ) {
-    keywordSelector = keywordSelectore.withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
+    keywordSelector = keywordSelector.withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
   }
  
   if( CAMPAIGN_INCLUDE.length > 0 ) {
