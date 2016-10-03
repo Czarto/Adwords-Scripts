@@ -1,21 +1,26 @@
 var CONVERSION_VALUE = 50.0;
 var MIN_NUM_CONVERSIONS = 25;
+var TAG_IGNORE = 'Script Ignore';
+var CAMPAIGN_INCLUDE = '[INCLUDE]'; // Only include Adgroups and keywords in Campaigns with this text string in the name
 
 function main() { 
   ////setAdGroupBids("ALL_TIME");
   
+  Logger.log('\n***** 30 DAYS *****');  
   setAdGroupBids("LAST_30_DAYS");
   setAdGroupBids_highCost("LAST_30_DAYS");
-  setAdGroupBids("LAST_14_DAYS");
-  setAdGroupBids_highCost("LAST_14_DAYS");
-  setAdGroupBids("LAST_7_DAYS");
-  setAdGroupBids_highCost("LAST_7_DAYS");
-  
-  
   setKeywordBids("LAST_30_DAYS");
   setKeywordBids_highCost("LAST_30_DAYS");
+
+  Logger.log('\n***** 14 DAYS *****');  
+  setAdGroupBids("LAST_14_DAYS");
+  setAdGroupBids_highCost("LAST_14_DAYS");
   setKeywordBids("LAST_14_DAYS");  
   setKeywordBids_highCost("LAST_14_DAYS");
+
+  Logger.log('\n***** 7 DAYS *****');
+  setAdGroupBids("LAST_7_DAYS");
+  setAdGroupBids_highCost("LAST_7_DAYS");
   setKeywordBids("LAST_7_DAYS");
   setKeywordBids_highCost("LAST_7_DAYS");
 }
@@ -26,11 +31,8 @@ function main() {
 // SET ADGROUP BIDS
 // ******************************************************************
 function setAdGroupBids(dateRange) {
-   var adGroupIterator = AdWordsApp.adGroups()
-      .forDateRange(dateRange)
-      .withCondition("Status = ENABLED")
-      .withCondition("CampaignStatus = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
+   Logger.log('\nSet Ad Group Bids, > ' + MIN_NUM_CONVERSIONS + ' Conv : ' + dateRange);
+   var adGroupIterator = GetAdGroupSelector(dateRange)
       .withCondition("ConvertedClicks > " + MIN_NUM_CONVERSIONS)
       .get();
   
@@ -54,14 +56,11 @@ function setAdGroupBids_highCost(dateRange) {
    Logger.log('\nHigh Cost AdGroups : ' + dateRange);
     var highCostThreshold = (CONVERSION_VALUE * .80);
 
-   var adGroupIterator = AdWordsApp.adGroups()
-      .forDateRange(dateRange)
-      .withCondition("Status = ENABLED")
-      .withCondition("CampaignStatus = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
-      .withCondition("ConvertedClicks <= " + MIN_NUM_CONVERSIONS)
-      .get();
+   var adGroupIterator = GetAdGroupSelector(dateRange)
+     .withCondition("ConvertedClicks <= " + MIN_NUM_CONVERSIONS)
+     .get();
 
+  
   Logger.log('Total adGroups found : ' + adGroupIterator.totalNumEntities());
   
   while (adGroupIterator.hasNext()) {
@@ -97,12 +96,7 @@ function setAdGroupBids_highCost(dateRange) {
 function setKeywordBids(dateRange) {
   Logger.log('\nSet Keyword Bids : ' + dateRange);
   
-   var KeywordIterator = AdWordsApp.keywords()
-      .forDateRange(dateRange)
-      .withCondition("Status = ENABLED")
-      .withCondition("CampaignStatus = ENABLED")
-      .withCondition("AdGroupStatus = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
+  var KeywordIterator = GetKeywordSelector(dateRange)
       .withCondition("ConvertedClicks > " + MIN_NUM_CONVERSIONS)
       .get();
   
@@ -143,14 +137,9 @@ function setKeywordBids_highCost(dateRange) {
   Logger.log('\nSet Keyword Bids, High Cost : ' + dateRange);
  var highCostThreshold = (CONVERSION_VALUE * .80);   
   
- var KeywordIterator = AdWordsApp.keywords()
-      .forDateRange(dateRange)
-      .withCondition("Status = ENABLED")
-      .withCondition("CampaignStatus = ENABLED")
-      .withCondition("AdGroupStatus = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
-      .withCondition("ConvertedClicks <= " + MIN_NUM_CONVERSIONS)
-      .get();
+  var KeywordIterator = GetKeywordSelector(dateRange)
+     .withCondition("ConvertedClicks <= " + MIN_NUM_CONVERSIONS)
+     .get();
   
   Logger.log('Total Keywords found : ' + KeywordIterator.totalNumEntities());
   
@@ -180,6 +169,50 @@ function setKeywordBids_highCost(dateRange) {
 }
 
 
+
+
+//**************************************************
+// Return Keyword Selector
+//**************************************************
+function GetKeywordSelector(dateRange) {
+ var keywordSelector = AdWordsApp.keywords()
+      .forDateRange(dateRange)
+      .withCondition("Status = ENABLED")
+      .withCondition("CampaignStatus = ENABLED")
+      .withCondition("AdGroupStatus = ENABLED");
+  
+  if( TAG_IGNORE.length > 0 ) {
+    keywordSelector = keywordSelectore.withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
+  }
+ 
+  if( CAMPAIGN_INCLUDE.length > 0 ) {
+    keywordSelector = keywordSelector.withCondition("CampaignName CONTAINS_IGNORE_CASE '" + CAMPAIGN_INCLUDE + "'");    
+  }
+  
+  return keywordSelector;
+}
+
+//***************************************************
+// Return AdGroup Selector
+//***************************************************
+function GetAdGroupSelector(dateRange) {
+  var adGroupSelector = AdWordsApp.adGroups()
+      .forDateRange(dateRange)
+      .withCondition("Status = ENABLED")
+      .withCondition("CampaignStatus = ENABLED")
+      .withCondition("AdGroupStatus = ENABLED");
+
+  if( TAG_IGNORE.length > 0 ) {
+    adGroupSelector = adGroupSelector.withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
+  }
+  
+  if( CAMPAIGN_INCLUDE.length > 0 ) {
+    adGroupSelector = adGroupSelector.withCondition("CampaignName CONTAINS_IGNORE_CASE '" + CAMPAIGN_INCLUDE + "'");    
+  }
+  
+  
+  return adGroupSelector;
+}
 
 
 // Round down bids to the closest quarter dollar.
