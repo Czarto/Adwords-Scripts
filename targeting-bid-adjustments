@@ -1,7 +1,10 @@
-var MAX_INCREASE = 0.1
-var MAX_MIN_LEVEL = 0.9
-var CONVERSION_THRESHOLD = 20;
-var CONVERSION_VALUE = 30;
+var BID_INCREMENT = 0.05;
+
+var THRESHOLD_INCREASE = 5;    // Set this to 1 to increase bids more aggressively
+var THRESHOLD_DECREASE = 1;    // Set this to 1 to decrease bids more aggressively
+var THRESHOLD_SIGNIFICANT = 20; // Extra bid adjustment happens when this many conversions
+
+var HIGH_COST = 100;    // How much is too much
 
 function main() { 
   //setAdGroupBids("ALL_TIME");
@@ -43,28 +46,38 @@ function setLocationBids(dateRange) {
         var locationConvRate = locationStats.getConversionRate();
         var locationConversions = locationStats.getConversions();
         var locationCost = locationStats.getCost();
-        var calculatedBidAdjustment = locationConvRate / campaignConvRate;
-        var oldBidModifier = targetedLocation.getBidModifier();
+        var targetBidAdjustment = locationConvRate / campaignConvRate;
+        var currentBidModifier = targetedLocation.getBidModifier();
         var locationName = targetedLocation.getName();
         var locationCountryCode = targetedLocation.getCountryCode();        
 
-        if( locationConversions > 0 ) {
+        if( locationConversions == 0 )
+          // Zero Conversions, Hight Cost. Drop bids by 10%.
+          if( locationCost > HIGH_COST  ) { 
+            var newBidModifier = Math.max(Math.min(currentBidModifier - BID_INCREMENT, 0.9),0.1);
+            targetedLocation.setBidModifier(newBidModifier);           
+            Logger.log('*** UPDATE *** Location name: ' + locationName 
+                   + ', bid modifier: ' + newBidModifier
+                   + ' zero conversions & high cost');
+          }
+        } else {
+          // At least 1 conversion
         
-          // Conversion rate MORE than average, but current bid is negative. Increase by 10%.      
-          if( locationConvRate > campaignConvRate && oldBidModifier < MAX_MIN_LEVEL ) {
-            if( calculatedBidAdjustment > (oldBidModifier + MAX_INCREASE) ) {
-              var newBidModifier = oldBidModifier + MAX_INCREASE;
+          // Conversion rate above average, increase bid      
+          if( locationConvRate > campaignConvRate && locationConversions >= THRESHOLD_INCREASE ) {
+            var newBidModifier = currentBidModifier + BID_INCREMENT;
+            if( targetBidAdjustment > newBidModifier ) {
               targetedLocation.setBidModifier(newBidModifier);           
               Logger.log('*** UPDATE *** Location name: ' + locationName
                    + ', bid modifier: ' + newBidModifier
-                   + ', Better than average conversion rate, but negative bidding. Increase bid.');
+                   + ', Better than average conversion rate. Increase bid.');
             
             }
             
-          // Conversion rate LESS than the average. Drop bids by 10%.
-          } else if (locationConvRate < campaignConvRate) {
-            if( calculatedBidAdjustment < (oldBidModifier - MAX_INCREASE) ) {
-              var newBidModifier = Math.max(Math.min(oldBidModifier - MAX_INCREASE, 0.9),0.1);
+          // Conversion rate below average. decrease bids
+          } else if (locationConvRate < campaignConvRate && locationConversions >= THRESHOLD_DECREASE) {
+            var newBidModifier = Math.max(Math.min(currentBidModifier - BID_INCREMENT, 1),0.1);
+            if( targetBidAdjustment < newBidModifier ) {
               targetedLocation.setBidModifier(newBidModifier);           
               Logger.log('*** UPDATE *** Location name: ' + locationName 
                    + ', bid modifier: ' + newBidModifier
@@ -72,30 +85,20 @@ function setLocationBids(dateRange) {
             }          
           }
         
-          // Many Conversions. Increase bids by 10%.
-          if( locationConversions > CONVERSION_THRESHOLD ) {
-            if( calculatedBidAdjustment > (oldBidModifier + MAX_INCREASE) ) {
-              var newBidModifier = oldBidModifier + MAX_INCREASE;
+          // Significant number of conversions. Adjust bids again.
+          if( locationConversions > THRESHOLD_SIGNIFICANT ) {
+            if( targetBidAdjustment > (currentBidModifier + BID_INCREMENT) ) {
+              var newBidModifier = currentBidModifier + BID_INCREMENT;
               targetedLocation.setBidModifier(newBidModifier);           
               Logger.log('*** UPDATE *** Location name: ' + locationName 
                    + ', bid modifier: ' + newBidModifier
                    + ' Good CPA, increase bids');            
             } 
           }
-        }
-        
-        // Zero Conversions, Hight Cost. Drop bids by 10%.
-        if( locationConversions == 0 && locationCost > CONVERSION_VALUE  ) { 
-              var newBidModifier = Math.max(Math.min(oldBidModifier - MAX_INCREASE, 0.9),0.1);
-              targetedLocation.setBidModifier(newBidModifier);           
-              Logger.log('*** UPDATE *** Location name: ' + locationName 
-                   + ', bid modifier: ' + newBidModifier
-                   + ' zero conversions & high cost');
-        }        
+        }     
       }
     }
   }   
-}
 
 
 function setAdScheduleBids(dateRange) {
@@ -134,10 +137,10 @@ function setAdScheduleBids(dateRange) {
 
         if( adScheduleConversions > 0 ) {
         
-          // Conversion rate MORE than average, but current bid is negative. Increase by 10%.      
-          if( adScheduleConvRate > campaignConvRate && oldBidModifier < MAX_MIN_LEVEL ) {
-            if( calculatedBidAdjustment > (oldBidModifier + MAX_INCREASE) ) {
-              var newBidModifier = oldBidModifier + MAX_INCREASE;
+          // Conversion rate MORE than average, Increase Bids.      
+          if( adScheduleConvRate > campaignConvRate ) {
+            if( calculatedBidAdjustment > (oldBidModifier + BID_INCREMENT) ) {
+              var newBidModifier = oldBidModifier + BID_INCREMENT;
               adSchedule.setBidModifier(newBidModifier);           
               Logger.log('*** UPDATE: Ad Schedule: ' + adScheduleName 
                    + '; increase bid: from ' + oldBidModifier + ' to ' + newBidModifier
@@ -146,8 +149,8 @@ function setAdScheduleBids(dateRange) {
             
           // Conversion rate LESS than the average. Drop bids by 10%.
           } else if (adScheduleConvRate < campaignConvRate) {
-            if( calculatedBidAdjustment < (oldBidModifier - MAX_INCREASE) ) {
-              var newBidModifier = Math.max(Math.min(oldBidModifier - MAX_INCREASE, 0.9),0.1);
+            if( calculatedBidAdjustment < (oldBidModifier - BID_INCREMENT) ) {
+              var newBidModifier = Math.max(Math.min(oldBidModifier - BID_INCREMENT, 0.9),0.1);
               adSchedule.setBidModifier(newBidModifier);           
               Logger.log('*** UPDATE: Ad Schedule: ' + adScheduleName 
                    + '; lower bid: from ' + oldBidModifier + ' to ' + newBidModifier
@@ -156,9 +159,9 @@ function setAdScheduleBids(dateRange) {
           }
         
           // Many Conversions. Increase bids by 10%.
-          if( adScheduleConversions > CONVERSION_THRESHOLD ) {
-            if( calculatedBidAdjustment > (oldBidModifier + MAX_INCREASE) ) {
-              var newBidModifier = oldBidModifier + MAX_INCREASE;
+          if( adScheduleConversions > THRESHOLD_SIGNIFICANT ) {
+            if( calculatedBidAdjustment > (oldBidModifier + BID_INCREMENT) ) {
+              var newBidModifier = oldBidModifier + BID_INCREMENT;
               adSchedule.setBidModifier(newBidModifier);           
               Logger.log('*** UPDATE: Ad Schedule: ' + adScheduleName 
                    + '; increase bid: from ' + oldBidModifier + ' to ' + newBidModifier
@@ -168,8 +171,8 @@ function setAdScheduleBids(dateRange) {
         }
         
         // Zero Conversions, Hight Cost. Drop bids by 10%.
-        if( adScheduleConversions == 0 && adScheduleCost > CONVERSION_VALUE  ) { 
-              var newBidModifier = Math.max(Math.min(oldBidModifier - MAX_INCREASE, 0.9),0.1);
+        if( adScheduleConversions == 0 && adScheduleCost > HIGH_COST  ) { 
+              var newBidModifier = Math.max(Math.min(oldBidModifier - BID_INCREMENT, 0.9),0.1);
               adSchedule.setBidModifier(newBidModifier);           
               Logger.log('*** UPDATE: Ad Schedule: ' + adScheduleName 
                    + '; lower bid: from ' + oldBidModifier + ' to ' + newBidModifier
@@ -217,16 +220,16 @@ function setMobileBidModifier(dateRange) {
         var tabletNewBidAdjustment = tabletConversionRate / desktopConversionRate;
         var tabletOldBidAdjustment = tabletTarget.getBidModifier();
              
-        if( tabletConversionRate > desktopConversionRate && tabletOldBidAdjustment < MAX_MIN_LEVEL ) {
-          if( tabletNewBidAdjustment > (tabletOldBidAdjustment + MAX_INCREASE) ) {
-            var newBidModifier = tabletOldBidAdjustment + MAX_INCREASE;
+        if( tabletConversionRate > desktopConversionRate ) {
+          if( tabletNewBidAdjustment > (tabletOldBidAdjustment + BID_INCREMENT) ) {
+            var newBidModifier = tabletOldBidAdjustment + BID_INCREMENT;
             tabletTarget.setBidModifier(newBidModifier);           
             Logger.log('*** UPDATE: Tablet Bid Modifer; '
                  + 'Increase bid: from ' + tabletOldBidAdjustment + ' to ' + newBidModifier);            
           }
         } else if (tabletConversionRate > 0 && tabletConversionRate < desktopConversionRate) {
-          if( tabletNewBidAdjustment < (tabletOldBidAdjustment - MAX_INCREASE) ) {
-            var newBidModifier = Math.max(Math.min(tabletOldBidAdjustment - MAX_INCREASE, 0.9),0.1);
+          if( tabletNewBidAdjustment < (tabletOldBidAdjustment - BID_INCREMENT) ) {
+            var newBidModifier = Math.max(Math.min(tabletOldBidAdjustment - BID_INCREMENT, 0.9),0.1);
             tabletTarget.setBidModifier(newBidModifier);           
             Logger.log('*** UPDATE: Tablet Bid Modifer; '
                  + 'Lower bid: from ' + tabletOldBidAdjustment + ' to ' + newBidModifier);               
@@ -241,16 +244,16 @@ function setMobileBidModifier(dateRange) {
         var mobileNewBidAdjustment = mobileConversionRate / desktopConversionRate;
         var mobileOldBidAdjustment = mobileTarget.getBidModifier();
                 
-        if( mobileConversionRate > desktopConversionRate && mobileOldBidAdjustment < MAX_MIN_LEVEL ) {
-          if( mobileNewBidAdjustment > (mobileOldBidAdjustment + MAX_INCREASE) ) {
-            var newBidModifier = mobileOldBidAdjustment + MAX_INCREASE;
+        if( mobileConversionRate > desktopConversionRate ) {
+          if( mobileNewBidAdjustment > (mobileOldBidAdjustment + BID_INCREMENT) ) {
+            var newBidModifier = mobileOldBidAdjustment + BID_INCREMENT;
             mobileTarget.setBidModifier(newBidModifier);           
             Logger.log('*** UPDATE: Mobile Bid Modifer; '
                  + 'Increase bid: from ' + mobileOldBidAdjustment + ' to ' + newBidModifier);            
           }
         } else if (mobileConversionRate > 0 && mobileConversionRate < desktopConversionRate) {
-          if( mobileNewBidAdjustment < (mobileOldBidAdjustment - MAX_INCREASE) ) {
-            var newBidModifier = Math.max(Math.min(mobileOldBidAdjustment - MAX_INCREASE, 0.9),0.1);
+          if( mobileNewBidAdjustment < (mobileOldBidAdjustment - BID_INCREMENT) ) {
+            var newBidModifier = Math.max(Math.min(mobileOldBidAdjustment - BID_INCREMENT, 0.9),0.1);
             mobileTarget.setBidModifier(newBidModifier);           
             Logger.log('*** UPDATE: Mobile Bid Modifer; '
                  + 'Lower bid: from ' + mobileOldBidAdjustment + ' to ' + newBidModifier);               
