@@ -17,6 +17,7 @@ function main() {
 
 function setLocationBids(dateRange) {
  
+  // Adjust for normal campaigns
   var campaignIterator = AdWordsApp.campaigns()
       .forDateRange(dateRange)
       .withCondition("Status = ENABLED")
@@ -25,23 +26,46 @@ function setLocationBids(dateRange) {
   
   Logger.log(' ')
   Logger.log('### ADJUST LOCATION TARGETING BIDS ###');
+  Logger.log('Non-Shopping Campaigns');
   Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
   
+  setLocationBidsForCampaigns(campaignIterator, dateRange);
+  
+  // Adjust for Shopping campaigns
+  var campaignIterator = AdWordsApp.shoppingCampaigns()
+      .forDateRange(dateRange)
+      .withCondition("Status = ENABLED")
+      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
+      .get();
+  
+  Logger.log(' ')
+  Logger.log('Shopping Campaigns');
+  Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
+  
+  setLocationBidsForCampaigns(campaignIterator, dateRange);
+}
+   
+
+//
+// Sets the location bids for all the campaigns within the CampaignIterator.
+//
+function setLocationBidsForCampaigns(campaignIterator, dateRange) {
+
   while (campaignIterator.hasNext()) {
     var campaign = campaignIterator.next();
     var stats = campaign.getStatsFor(dateRange);
     var campaignConvRate = stats.getClickConversionRate();
     
-    Logger.log(' ');
-    Logger.log('CAMPAIGN: ' + campaign.getName());
+    Logger.log('-- CAMPAIGN: ' + campaign.getName());
     
     var locationIterator = campaign.targeting().targetedLocations().get();
 
+    Logger.log('----- Locations found : ' + locationIterator.totalNumEntities());
+    
     while (locationIterator.hasNext()) {
       var targetedLocation = locationIterator.next();
       
       if( targetedLocation.getTargetType() != "Country" ) {
-
         var locationStats = targetedLocation.getStatsFor(dateRange);
         var locationConvRate = locationStats.getConversionRate();
         var locationConversions = locationStats.getConversions();
@@ -51,9 +75,17 @@ function setLocationBids(dateRange) {
         var locationName = targetedLocation.getName();
         var locationCountryCode = targetedLocation.getCountryCode();        
 
-        if( locationConversions == 0 )
+        //Logger.log(' ');
+        //Logger.log('--------' + locationName);
+                   
+        if( locationConversions == 0 ) {
+          
+          //Logger.log('        Zero Conversions');
+          //Logger.log('        Cost: ' + locationCost);
+        
           // Zero Conversions, Hight Cost. Drop bids by 10%.
           if( locationCost > HIGH_COST  ) { 
+            Logger.log('        High Cost');
             var newBidModifier = Math.max(Math.min(currentBidModifier - BID_INCREMENT, 0.9),0.1);
             targetedLocation.setBidModifier(newBidModifier);           
             Logger.log('*** UPDATE *** Location name: ' + locationName 
@@ -99,7 +131,7 @@ function setLocationBids(dateRange) {
       }
     }
   }   
-
+}
 
 function setAdScheduleBids(dateRange) {
  
@@ -113,6 +145,24 @@ function setAdScheduleBids(dateRange) {
   Logger.log('### ADJUST AD SCHEDULE TARGETING BIDS ###');
   Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
   
+  setAdScheduleBidsForCampaigns( campaignIterator, dateRange );
+  
+  // Adjust for Shopping campaigns
+  var campaignIterator = AdWordsApp.shoppingCampaigns()
+      .forDateRange(dateRange)
+      .withCondition("Status = ENABLED")
+      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
+      .get();
+  
+  Logger.log(' ')
+  Logger.log('Shopping Campaigns');
+  Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
+  
+  setAdScheduleBidsForCampaigns(campaignIterator, dateRange); 
+}
+
+function setAdScheduleBidsForCampaigns(campaignIterator, dateRange) {
+    
   while (campaignIterator.hasNext()) {
     var campaign = campaignIterator.next();
     var stats = campaign.getStatsFor(dateRange);
@@ -179,9 +229,8 @@ function setAdScheduleBids(dateRange) {
                    + ' Zero conversions, high cost');    
         }        
       }
-  }   
+  }  
 }
-
 
 // Mobile Bids
 function setMobileBidModifier(dateRange) {
@@ -195,6 +244,24 @@ function setMobileBidModifier(dateRange) {
   Logger.log(' ')
   Logger.log('### ADJUST MOBILE TARGETING BIDS ###');
   Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
+  
+  setMobileBidModifierForCampaigns(campaignIterator, dateRange)
+  
+  // Adjust for Shopping campaigns
+  var campaignIterator = AdWordsApp.shoppingCampaigns()
+      .forDateRange(dateRange)
+      .withCondition("Status = ENABLED")
+      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
+      .get();
+  
+  Logger.log(' ')
+  Logger.log('Shopping Campaigns');
+  Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
+  
+  setMobileBidModifierForCampaigns(campaignIterator, dateRange); 
+}
+
+function setMobileBidModifierForCampaigns(campaignIterator, dateRange) {
   
   while (campaignIterator.hasNext()) {
     var campaign = campaignIterator.next();
@@ -263,7 +330,6 @@ function setMobileBidModifier(dateRange) {
     }
   }
 }
-
 
 function formatSchedule(schedule) {
   function zeroPad(number) { return Utilities.formatString('%02d', number); }
