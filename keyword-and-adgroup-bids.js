@@ -1,7 +1,7 @@
 var CONVERSION_VALUE = 50.0;
 var MIN_NUM_CONVERSIONS = 25;
 var TAG_IGNORE = 'Script Ignore';
-var CAMPAIGN_INCLUDE = '[INCLUDE]'; // Only include Adgroups and keywords in Campaigns with this text string in the name
+var CAMPAIGN_INCLUDE = ''; // Only include Adgroups and keywords in Campaigns with this text string in the name
 
 function main() { 
   ////setAdGroupBids("ALL_TIME");
@@ -134,14 +134,15 @@ function setKeywordBids(dateRange) {
 // SET KEYWORD BIDS, HIGH COST
 // ******************************************************************
 function setKeywordBids_highCost(dateRange) {
-  Logger.log('\nSet Keyword Bids, High Cost : ' + dateRange);
- var highCostThreshold = (CONVERSION_VALUE * .80);   
+  Logger.log('\nSet Keyword Bids, High Cost : ' + dateRange); 
   
   var KeywordIterator = GetKeywordSelector(dateRange)
      .withCondition("ConvertedClicks <= " + MIN_NUM_CONVERSIONS)
      .get();
   
   Logger.log('Total Keywords found : ' + KeywordIterator.totalNumEntities());
+  
+  var highCostThreshold = (CONVERSION_VALUE * .80);  
   
   while (KeywordIterator.hasNext()) {
     var keyword = KeywordIterator.next();
@@ -150,21 +151,42 @@ function setKeywordBids_highCost(dateRange) {
     var clicks = stats.getClicks();
     var cost = stats.getCost();
     var conv_rate = stats.getClickConversionRate();
-
+    var cpc_firstpage = keyword.getFirstPageCpc();
+    var cpc_toppage = keyword.getTopOfPageCpc();
+    var cpc_now = keyword.bidding().getCpc();
+    var cpc_max = roundDown(conv_rate * CONVERSION_VALUE);  
+    var cpa = CONVERSION_VALUE;
+    
     if( conversions == 0 && clicks > 0) {
-      conversions = 1;
-      conv_rate = conversions / clicks;
+      conv_rate = 1 / clicks;
+      cpa = cost;
+      cpc_max = roundDown(conv_rate * CONVERSION_VALUE);  
+    } else {
+      cpa = cost / conversions;
+    }  
+    
+    // If CPA is greater than max cost, reduce bid    
+    if (cpa > highCostThreshold) {
+      if( cpc_max < cpc_now) {
+        keyword.bidding().setCpc(cpc_max);
+      }
+    } 
+    
+    // If current CPC is below top of page, increase to top of page if possible
+    else if( cpc_now < cpc_toppage && cpc_toppage < cpc_max ) {
+      if( conversions > 1 || conversions == 0 && cost < (CONVERSION_VALUE * .5)) {
+        keyword.bidding().setCpc(cpc_toppage);
+        Logger.log('------ ' + keyword.getText() + ' increased to top of page;');
+      }
     }
     
-    var cpa = cost / conversions;
-    
-    if (cpa > highCostThreshold) {
-      var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
-      
-      if( max_cpc < keyword.bidding().getCpc()) {
-        keyword.bidding().setCpc(max_cpc);
+    // If current CPC is below first page, increase to first page if possible
+    else if( cpc_now < cpc_firstpage && cpc_firstpage < cpc_max ) {
+      if( conversions > 1 || conversions == 0 && cost < (CONVERSION_VALUE * .5)) {
+        keyword.bidding().setCpc(cpc_firstpage);
+        Logger.log('------ ' + keyword.getText() + ' increased to first of page;');
       }
-    }     
+    }
   } 
 }
 
