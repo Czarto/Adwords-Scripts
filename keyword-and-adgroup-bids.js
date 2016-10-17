@@ -156,6 +156,7 @@ function setKeywordBids_highCost(dateRange) {
     var cpc_now = keyword.bidding().getCpc();
     var cpc_max = roundDown(conv_rate * CONVERSION_VALUE);  
     var cpa = CONVERSION_VALUE;
+
     
     if( conversions == 0 && clicks > 0) {
       conv_rate = 1 / clicks;
@@ -174,7 +175,7 @@ function setKeywordBids_highCost(dateRange) {
     
     // If current CPC is below top of page, increase to top of page if possible
     else if( cpc_now < cpc_toppage && cpc_toppage < cpc_max ) {
-      if( conversions > 1 || conversions == 0 && cost < (CONVERSION_VALUE * .5)) {
+      if( conversions >= 1 || conversions == 0 && cost < (CONVERSION_VALUE * .5)) {
         keyword.bidding().setCpc(cpc_toppage);
         Logger.log('------ ' + keyword.getText() + ' increased to top of page;');
       }
@@ -182,7 +183,7 @@ function setKeywordBids_highCost(dateRange) {
     
     // If current CPC is below first page, increase to first page if possible
     else if( cpc_now < cpc_firstpage && cpc_firstpage < cpc_max ) {
-      if( conversions > 1 || conversions == 0 && cost < (CONVERSION_VALUE * .5)) {
+      if( conversions >= 1 || conversions == 0 && cost < (CONVERSION_VALUE * .5)) {
         keyword.bidding().setCpc(cpc_firstpage);
         Logger.log('------ ' + keyword.getText() + ' increased to first of page;');
       }
@@ -201,7 +202,8 @@ function GetKeywordSelector(dateRange) {
       .forDateRange(dateRange)
       .withCondition("Status = ENABLED")
       .withCondition("CampaignStatus = ENABLED")
-      .withCondition("AdGroupStatus = ENABLED");
+      .withCondition("AdGroupStatus = ENABLED")
+      .withCondition("Clicks > 0");
   
   if( TAG_IGNORE.length > 0 ) {
     keywordSelector = keywordSelector.withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
