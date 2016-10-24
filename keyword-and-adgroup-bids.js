@@ -175,7 +175,7 @@ function setKeywordBids_highCost(dateRange) {
     
     // If current CPC is below top of page, increase to top of page if possible
     else if( cpc_now < cpc_toppage && cpc_toppage < cpc_max ) {
-      if( conversions >= 1 || conversions == 0 && cost < (CONVERSION_VALUE * .5)) {
+      if( conversions >= 1 ) {
         keyword.bidding().setCpc(cpc_toppage);
         Logger.log('------ ' + keyword.getText() + ' increased to top of page;');
       }
@@ -183,7 +183,7 @@ function setKeywordBids_highCost(dateRange) {
     
     // If current CPC is below first page, increase to first page if possible
     else if( cpc_now < cpc_firstpage && cpc_firstpage < cpc_max ) {
-      if( conversions >= 1 || conversions == 0 && cost < (CONVERSION_VALUE * .5)) {
+      if( conversions >= 1 ) {
         keyword.bidding().setCpc(cpc_firstpage);
         Logger.log('------ ' + keyword.getText() + ' increased to first of page;');
       }
