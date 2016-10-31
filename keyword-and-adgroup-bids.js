@@ -1,3 +1,5 @@
+// Version: Alpha
+
 var CONVERSION_VALUE = 50.0;
 var MIN_NUM_CONVERSIONS = 25;
 var TAG_IGNORE = 'Script Ignore';
