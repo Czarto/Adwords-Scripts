@@ -1,3 +1,5 @@
+// Version: Alpha
+
 var BID_INCREMENT = 0.05;
 
 var THRESHOLD_INCREASE = 5;    // Set this to 1 to increase bids more aggressively
