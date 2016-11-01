@@ -13,8 +13,6 @@ var STOPLIMIT_ADJUSTMENT = 1.50; // Do not increase adjustments above +50%
 
 
 function main() { 
-  //setAdGroupBids("ALL_TIME");
-  
   setLocationBids("LAST_30_DAYS");
   setAdScheduleBids("LAST_30_DAYS");
   setMobileBidModifier("LAST_30_DAYS");
