@@ -50,7 +50,7 @@ function main() {
 // ******************************************************************
 function setAdGroupBids(dateRange, dateRangeEnd) {
    Logger.log('\nSet Ad Group Bids, > ' + THRESHOLD_SIGNIFICANT + ' Conv : ' + dateRange);
-   var adGroupIterator = GetAdGroupSelector(dateRange)
+   var adGroupIterator = GetAdGroupSelector(dateRange, dateRangeEnd)
       .withCondition("ConvertedClicks > " + THRESHOLD_SIGNIFICANT)
       .get();
   
