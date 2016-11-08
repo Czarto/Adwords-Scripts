@@ -2,7 +2,7 @@
 
 var BID_INCREMENT = 0.05;
 
-var THRESHOLD_INCREASE = 5;    // Set this to 1 to increase bids more aggressively
+var THRESHOLD_INCREASE = 10;    // Set this to 1 to increase bids more aggressively
 var THRESHOLD_DECREASE = 1;    // Set this to 1 to decrease bids more aggressively
 var THRESHOLD_SIGNIFICANT = 20; // Extra bid adjustment happens when this many conversions
 
@@ -12,8 +12,9 @@ var STOPLIMIT_POSITION = 1.3; // Do not increase bids at this position or better
 var STOPLIMIT_ADJUSTMENT = 1.50; // Do not increase adjustments above +50%
 
 function main() { 
-  
-  //setLocationBids(LAST_YEAR(), TODAY());
+  setLocationBids(LAST_YEAR(), TODAY());
+  setAdScheduleBids(LAST_YEAR(), TODAY());
+  setMobileBidModifier(LAST_YEAR(), TODAY());
   
   setLocationBids("LAST_30_DAYS");
   setAdScheduleBids("LAST_30_DAYS");
