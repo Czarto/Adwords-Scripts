@@ -66,7 +66,7 @@ function setAdGroupBids(dateRange, dateRangeEnd) {
     var new_cpc = max_cpc;
     if( max_cpc > current_cpc) { // Increase bids
        new_cpc = Math.min(current_cpc + BID_INCREMENT, max_cpc);
-    } elseif (max_cpc < current_cpc) { // Decrease bids
+    } else if (max_cpc < current_cpc) { // Decrease bids
        new_cpc = Math.max(current_cpc - BID_INCREMENT, max_cpc);
     }
 
@@ -146,7 +146,7 @@ function setKeywordBids(dateRange, dateRangeEnd) {
     var new_cpc = max_cpc;
     if( max_cpc > current_cpc) { // Increase bids
        new_cpc = Math.min(current_cpc + BID_INCREMENT, max_cpc);
-    } elseif (max_cpc < current_cpc) { // Decrease bids
+    } else if (max_cpc < current_cpc) { // Decrease bids
        new_cpc = Math.max(current_cpc - BID_INCREMENT, max_cpc);
     }
     
