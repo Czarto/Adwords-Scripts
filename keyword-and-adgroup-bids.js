@@ -1,12 +1,28 @@
-// Version: Alpha
+// Version: Beta
 
 var CONVERSION_VALUE = 50.0;
-var MIN_NUM_CONVERSIONS = 25;
 var TAG_IGNORE = 'Script Ignore';
 var CAMPAIGN_INCLUDE = ''; // Only include Adgroups and keywords in Campaigns with this text string in the name
 
+var BID_INCREMENT = 0.25;
+
+var THRESHOLD_INCREASE = 10;    // Set this to 1 to increase bids more aggressively
+var THRESHOLD_DECREASE = 1;    // Set this to 1 to decrease bids more aggressively
+var THRESHOLD_SIGNIFICANT = 20; // Extra bid adjustment happens when this many conversions
+
+var HIGH_COST = 100;    // How much is too much
+
+var STOPLIMIT_POSITION = 1.3; // Do not increase bids at this position or better
+
+
 function main() { 
   ////setAdGroupBids("ALL_TIME");
+  
+  Logger.log('\n***** 1 YEAR *****');  
+  setAdGroupBids(LAST_YEAR(), TODAY());
+  setAdGroupBids_highCost(LAST_YEAR(), TODAY());
+  setKeywordBids(LAST_YEAR(), TODAY());
+  setKeywordBids_highCost(LAST_YEAR(), TODAY());
   
   Logger.log('\n***** 30 DAYS *****');  
   setAdGroupBids("LAST_30_DAYS");
@@ -32,34 +48,42 @@ function main() {
 // ******************************************************************
 // SET ADGROUP BIDS
 // ******************************************************************
-function setAdGroupBids(dateRange) {
-   Logger.log('\nSet Ad Group Bids, > ' + MIN_NUM_CONVERSIONS + ' Conv : ' + dateRange);
+function setAdGroupBids(dateRange, dateRangeEnd) {
+   Logger.log('\nSet Ad Group Bids, > ' + THRESHOLD_SIGNIFICANT + ' Conv : ' + dateRange);
    var adGroupIterator = GetAdGroupSelector(dateRange)
-      .withCondition("ConvertedClicks > " + MIN_NUM_CONVERSIONS)
+      .withCondition("ConvertedClicks > " + THRESHOLD_SIGNIFICANT)
       .get();
   
   Logger.log('Total adGroups found : ' + adGroupIterator.totalNumEntities());
   
   while (adGroupIterator.hasNext()) {
     var adGroup = adGroupIterator.next();
-    var stats = adGroup.getStatsFor(dateRange);
+    var stats = adGroup.getStatsFor(dateRange, dateRangeEnd);
     var conv_rate = stats.getClickConversionRate();
+    var current_cpc = adGroup.bidding().getCpc();
     var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
     
+    var new_cpc = max_cpc;
+    if( max_cpc > current_cpc) { // Increase bids
+       new_cpc = Math.min(current_cpc + BID_INCREMENT, max_cpc);
+    } elseif (max_cpc < current_cpc) { // Decrease bids
+       new_cpc = Math.max(current_cpc - BID_INCREMENT, max_cpc);
+    }
+
     //Logger.log('AdGroup Name: ' + adGroup.getName() + ' ConvRate:' + conv_rate + ' MaxCPC:' + max_cpc);   
-    adGroup.bidding().setCpc(max_cpc);
+    adGroup.bidding().setCpc(new_cpc);
   } 
 }
 
 // ******************************************************************
 // SET ADGROUP BIDS FOR HIGH COST ADWORDS
 // ******************************************************************
-function setAdGroupBids_highCost(dateRange) {
+function setAdGroupBids_highCost(dateRange, dateRangeEnd) {
    Logger.log('\nHigh Cost AdGroups : ' + dateRange);
     var highCostThreshold = (CONVERSION_VALUE * .80);
 
-   var adGroupIterator = GetAdGroupSelector(dateRange)
-     .withCondition("ConvertedClicks <= " + MIN_NUM_CONVERSIONS)
+   var adGroupIterator = GetAdGroupSelector(dateRange, dateRangeEnd)
+     .withCondition("ConvertedClicks <= " + THRESHOLD_SIGNIFICANT)
      .get();
 
   
@@ -67,7 +91,7 @@ function setAdGroupBids_highCost(dateRange) {
   
   while (adGroupIterator.hasNext()) {
     var adGroup = adGroupIterator.next();
-    var stats = adGroup.getStatsFor(dateRange);
+    var stats = adGroup.getStatsFor(dateRange, dateRangeEnd);
     var conversions = stats.getConvertedClicks();
     var clicks = stats.getClicks();
     var cost = stats.getCost();
@@ -95,38 +119,45 @@ function setAdGroupBids_highCost(dateRange) {
 // ******************************************************************
 // SET KEYWORD BIDS
 // ******************************************************************
-function setKeywordBids(dateRange) {
+function setKeywordBids(dateRange, dateRangeEnd) {
   Logger.log('\nSet Keyword Bids : ' + dateRange);
   
-  var KeywordIterator = GetKeywordSelector(dateRange)
-      .withCondition("ConvertedClicks > " + MIN_NUM_CONVERSIONS)
+  var KeywordIterator = GetKeywordSelector(dateRange, dateRangeEnd)
+      .withCondition("ConvertedClicks > " + THRESHOLD_SIGNIFICANT)
       .get();
   
   Logger.log('Total Keywords found : ' + KeywordIterator.totalNumEntities());
   
   while (KeywordIterator.hasNext()) {
     var keyword = KeywordIterator.next();
-    var stats = keyword.getStatsFor(dateRange);
+    var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
     var conv_rate = stats.getClickConversionRate();
     var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
 
     // Temp variables
     var keywordBidding = keyword.bidding();
-    var keywordCpc = keywordBidding.getCpc();
+    var current_cpc = keywordBidding.getCpc();
     
     // Calculate Range for wich we want to keep adgroup bids
     var AdGroupCpc = keyword.getAdGroup().bidding().getCpc();
     var AdGroupCpcMin = AdGroupCpc * 0.9;
     var AdGroupCpcMax = AdGroupCpc * 1.1;
     
-    if( max_cpc > keywordCpc && stats.getAveragePosition() < 1.2 ) {
+    var new_cpc = max_cpc;
+    if( max_cpc > current_cpc) { // Increase bids
+       new_cpc = Math.min(current_cpc + BID_INCREMENT, max_cpc);
+    } elseif (max_cpc < current_cpc) { // Decrease bids
+       new_cpc = Math.max(current_cpc - BID_INCREMENT, max_cpc);
+    }
+    
+    if( new_cpc > current_cpc && stats.getAveragePosition() < STOPLIMIT_POSITION ) {
       Logger.log('Keyword: ' + keyword.getText() + ' Position too high. Bid not updated.');
-    } else if( max_cpc > AdGroupCpcMin && max_cpc < AdGroupCpcMax ) {
+    } else if( new_cpc > AdGroupCpcMin && new_cpc < AdGroupCpcMax ) {
       keywordBidding.clearCpc();
-      Logger.log('Keyword: ' + keyword.getText() + ' Keyword text reset to AdGroup bid');
+      Logger.log('Keyword: ' + keyword.getText() + ' Keyword bid reset to AdGroup bid');
     } else {
       Logger.log('Keyword: ' + keyword.getText() + ' ConvRate:' + conv_rate + ' MaxCPC:' + max_cpc);   
-      keywordBidding.setCpc(max_cpc);
+      keywordBidding.setCpc(new_cpc);
     }
   } 
 }
@@ -135,11 +166,11 @@ function setKeywordBids(dateRange) {
 // ******************************************************************
 // SET KEYWORD BIDS, HIGH COST
 // ******************************************************************
-function setKeywordBids_highCost(dateRange) {
+function setKeywordBids_highCost(dateRange, dateRangeEnd) {
   Logger.log('\nSet Keyword Bids, High Cost : ' + dateRange); 
   
-  var KeywordIterator = GetKeywordSelector(dateRange)
-     .withCondition("ConvertedClicks <= " + MIN_NUM_CONVERSIONS)
+  var KeywordIterator = GetKeywordSelector(dateRange, dateRangeEnd)
+     .withCondition("ConvertedClicks <= " + THRESHOLD_SIGNIFICANT)
      .get();
   
   Logger.log('Total Keywords found : ' + KeywordIterator.totalNumEntities());
@@ -148,7 +179,7 @@ function setKeywordBids_highCost(dateRange) {
   
   while (KeywordIterator.hasNext()) {
     var keyword = KeywordIterator.next();
-    var stats = keyword.getStatsFor(dateRange);
+    var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
     var conversions = stats.getConvertedClicks();
     var clicks = stats.getClicks();
     var cost = stats.getCost();
@@ -199,9 +230,9 @@ function setKeywordBids_highCost(dateRange) {
 //**************************************************
 // Return Keyword Selector
 //**************************************************
-function GetKeywordSelector(dateRange) {
+function GetKeywordSelector(dateRange, dateRangeEnd) {
  var keywordSelector = AdWordsApp.keywords()
-      .forDateRange(dateRange)
+      .forDateRange(dateRange, dateRangeEnd)
       .withCondition("Status = ENABLED")
       .withCondition("CampaignStatus = ENABLED")
       .withCondition("AdGroupStatus = ENABLED")
@@ -221,9 +252,9 @@ function GetKeywordSelector(dateRange) {
 //***************************************************
 // Return AdGroup Selector
 //***************************************************
-function GetAdGroupSelector(dateRange) {
+function GetAdGroupSelector(dateRange, dateRangeEnd) {
   var adGroupSelector = AdWordsApp.adGroups()
-      .forDateRange(dateRange)
+      .forDateRange(dateRange, dateRangeEnd)
       .withCondition("Status = ENABLED")
       .withCondition("CampaignStatus = ENABLED")
       .withCondition("AdGroupStatus = ENABLED");
@@ -263,4 +294,28 @@ function roundDown(value) {
   //Logger.log('bid: ' + value + '; new bid: ' + newBid);
   
   return newBid;
+}
+
+//
+// Date range helper functions
+// Returns today's date.
+//
+function TODAY() {
+  var today = new Date();
+  var dd = today.getDate();
+  var mm = today.getMonth()+1; //January is 0!
+  var yyyy = today.getFullYear();
+
+  return {year: yyyy, month: mm, day: dd};
+}
+
+//
+// Date range helper functions
+// Returns date 1 year ago
+//
+function LAST_YEAR() {
+  var today = TODAY();
+  
+  today.year = today.year-1;
+  return today;
 }
