@@ -1,4 +1,4 @@
-// Version: Capa
+// Version: Delta
 
 var BID_INCREMENT = 0.05;
 
@@ -14,24 +14,20 @@ var STOPLIMIT_POSITION = 1.3; // Do not increase bids at this position or better
 var STOPLIMIT_ADJUSTMENT = 1.50; // Do not increase adjustments above +50%
 
 function main() { 
-  setLocationBids(LAST_YEAR(), TODAY());
+  //setLocationBids(LAST_YEAR(), TODAY());
   setAdScheduleBids(LAST_YEAR(), TODAY());
-  setMobileBidModifier(LAST_YEAR(), TODAY());
+  //setMobileBidModifier(LAST_YEAR(), TODAY());
   
-  setLocationBids("LAST_30_DAYS");
+  //setLocationBids("LAST_30_DAYS");
   setAdScheduleBids("LAST_30_DAYS");
-  setMobileBidModifier("LAST_30_DAYS");
+  //setMobileBidModifier("LAST_30_DAYS");
 }
 
 
 function setLocationBids(dateRange, dateRangeEnd) {
  
   // Adjust for normal campaigns
-  var campaignIterator = AdWordsApp.campaigns()
-      .forDateRange(dateRange, dateRangeEnd)
-      .withCondition("Status = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
-      .get();
+  var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd).get();
   
   Logger.log(' ')
   Logger.log('### ADJUST LOCATION TARGETING BIDS ###');
@@ -41,11 +37,7 @@ function setLocationBids(dateRange, dateRangeEnd) {
   setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
   
   // Adjust for Shopping campaigns
-  var campaignIterator = AdWordsApp.shoppingCampaigns()
-      .forDateRange(dateRange, dateRangeEnd)
-      .withCondition("Status = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']")
-      .get();
+  var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd, true).get();
   
   Logger.log(' ')
   Logger.log('Shopping Campaigns');
@@ -138,11 +130,7 @@ function setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) 
 
 function setAdScheduleBids(dateRange, dateRangeEnd) {
  
-  var campaignIterator = AdWordsApp.campaigns()
-      .forDateRange(dateRange, dateRangeEnd)
-      .withCondition("Status = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']")
-       .get();
+  var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd).get();
   
   Logger.log(' ')
   Logger.log('### ADJUST AD SCHEDULE TARGETING BIDS ###');
@@ -151,11 +139,7 @@ function setAdScheduleBids(dateRange, dateRangeEnd) {
   setAdScheduleBidsForCampaigns( campaignIterator, dateRange, dateRangeEnd );
   
   // Adjust for Shopping campaigns
-  var campaignIterator = AdWordsApp.shoppingCampaigns()
-      .forDateRange(dateRange, dateRangeEnd)
-      .withCondition("Status = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']")
-       .get();
+  var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd, true).get();
   
   Logger.log(' ')
   Logger.log('Shopping Campaigns');
@@ -238,11 +222,7 @@ function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd
 // Mobile Bids
 function setMobileBidModifier(dateRange, dateRangeEnd) {
 
-  var campaignIterator = AdWordsApp.campaigns()
-      .forDateRange(dateRange, dateRangeEnd)
-      .withCondition("Status = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']")
-      .get();
+  var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd).get();
   
   Logger.log(' ')
   Logger.log('### ADJUST MOBILE TARGETING BIDS ###');
@@ -251,11 +231,7 @@ function setMobileBidModifier(dateRange, dateRangeEnd) {
   setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRangeEnd)
   
   // Adjust for Shopping campaigns
-  var campaignIterator = AdWordsApp.shoppingCampaigns()
-      .forDateRange(dateRange, dateRangeEnd)
-      .withCondition("Status = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']")
-      .get();
+  var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd, true).get();
   
   Logger.log(' ')
   Logger.log('Shopping Campaigns');
@@ -328,6 +304,29 @@ function setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRange
   }
 }
 
+
+//
+// Returns the CampaignIterator object
+//
+function getCampaignSelector(dateRange, dateRangeEnd, isShopping) {
+  var campaignSelector = isShopping ? AdWordsApp.shoppingCampaigns() : AdWordsApp.campaigns();
+  
+  campaignSelector = campaignSelector 
+      .forDateRange(dateRange, dateRangeEnd)
+      .withCondition("Status = ENABLED");
+  
+  if( TAG_IGNORE.length > 0 ) {
+      campaignSelector = campaignSelector
+      .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
+  }
+  
+  return campaignSelector;
+}
+
+
+//
+// Date formatting for logging
+//
 function formatSchedule(schedule) {
   function zeroPad(number) { return Utilities.formatString('%02d', number); }
   return schedule.getDayOfWeek() + ', ' +
