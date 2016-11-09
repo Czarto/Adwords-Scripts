@@ -2,6 +2,8 @@
 
 var BID_INCREMENT = 0.05;
 
+var TAG_IGNORE = '';
+
 var THRESHOLD_INCREASE = 10;    // Set this to 1 to increase bids more aggressively
 var THRESHOLD_DECREASE = 1;    // Set this to 1 to decrease bids more aggressively
 var THRESHOLD_SIGNIFICANT = 20; // Extra bid adjustment happens when this many conversions
@@ -42,7 +44,7 @@ function setLocationBids(dateRange, dateRangeEnd) {
   var campaignIterator = AdWordsApp.shoppingCampaigns()
       .forDateRange(dateRange, dateRangeEnd)
       .withCondition("Status = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
+      .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']")
       .get();
   
   Logger.log(' ')
@@ -139,8 +141,8 @@ function setAdScheduleBids(dateRange, dateRangeEnd) {
   var campaignIterator = AdWordsApp.campaigns()
       .forDateRange(dateRange, dateRangeEnd)
       .withCondition("Status = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
-      .get();
+      .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']")
+       .get();
   
   Logger.log(' ')
   Logger.log('### ADJUST AD SCHEDULE TARGETING BIDS ###');
@@ -152,8 +154,8 @@ function setAdScheduleBids(dateRange, dateRangeEnd) {
   var campaignIterator = AdWordsApp.shoppingCampaigns()
       .forDateRange(dateRange, dateRangeEnd)
       .withCondition("Status = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
-      .get();
+      .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']")
+       .get();
   
   Logger.log(' ')
   Logger.log('Shopping Campaigns');
@@ -239,7 +241,7 @@ function setMobileBidModifier(dateRange, dateRangeEnd) {
   var campaignIterator = AdWordsApp.campaigns()
       .forDateRange(dateRange, dateRangeEnd)
       .withCondition("Status = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
+      .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']")
       .get();
   
   Logger.log(' ')
@@ -252,7 +254,7 @@ function setMobileBidModifier(dateRange, dateRangeEnd) {
   var campaignIterator = AdWordsApp.shoppingCampaigns()
       .forDateRange(dateRange, dateRangeEnd)
       .withCondition("Status = ENABLED")
-      .withCondition("LabelNames CONTAINS_NONE ['Script Ignore']")
+      .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']")
       .get();
   
   Logger.log(' ')
