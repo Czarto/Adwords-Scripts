@@ -1,7 +1,7 @@
 // Version: Delta
 
 var BID_INCREMENT = 0.05;
-
+var DEBUG = false;
 var TAG_IGNORE = '';
 
 var THRESHOLD_INCREASE = 10;    // Set this to 1 to increase bids more aggressively
