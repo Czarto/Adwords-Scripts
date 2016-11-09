@@ -15,11 +15,11 @@ var STOPLIMIT_ADJUSTMENT = 1.50; // Do not increase adjustments above +50%
 
 function main() { 
   setLocationBids(LAST_YEAR(), TODAY());
-  //setAdScheduleBids(LAST_YEAR(), TODAY());
+  setAdScheduleBids(LAST_YEAR(), TODAY());
   setMobileBidModifier(LAST_YEAR(), TODAY());
   
   setLocationBids("LAST_30_DAYS");
-  //setAdScheduleBids("LAST_30_DAYS");
+  setAdScheduleBids("LAST_30_DAYS");
   setMobileBidModifier("LAST_30_DAYS");
 }
 
