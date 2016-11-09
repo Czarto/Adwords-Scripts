@@ -159,7 +159,7 @@ function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd
           }
         
           // Many Conversions. Increase bids again.
-          if( conversions >= THRESHOLD_SIGNIFICANT  && avgPosition > STOPLIMIT_POSITION  && currentBidModifer < STOPLIMIT_ADJUSTMENT) {
+          if( conversions >= THRESHOLD_SIGNIFICANT  && avgPosition > STOPLIMIT_POSITION  && currentBidModifier < STOPLIMIT_ADJUSTMENT) {
             increaseBid(adSchedule)
           }
         }
