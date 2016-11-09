@@ -289,7 +289,7 @@ function isBidDecreaseNeeded(stats, currentBid, baselineConversionRate ) {
 // returns true if the difference between the two bids is >= BID_INCREMENT
 //
 function isBidChangeSignificant(bid1, bid2) {
-  return (Math.abs(currentBidModifer - targetBidModifer) >= BID_INCREMENT)
+  return (Math.abs(bid1 - bid2) >= BID_INCREMENT)
 }
 
 
