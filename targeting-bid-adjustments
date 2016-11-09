@@ -113,7 +113,7 @@ function setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) 
           }
         
           // Significant number of conversions. Adjust bids again.
-          if( conversions > THRESHOLD_SIGNIFICANT  && avgPosition > STOPLIMIT_POSITION && currentBidModifier < STOPLIMIT_ADJUSTMENT) {
+          if( conversions >= THRESHOLD_SIGNIFICANT  && avgPosition > STOPLIMIT_POSITION && currentBidModifier < STOPLIMIT_ADJUSTMENT) {
             if( targetBidAdjustment > (currentBidModifier + BID_INCREMENT) ) {
               var newBidModifier = currentBidModifier + BID_INCREMENT;
               targetedLocation.setBidModifier(newBidModifier);           
@@ -175,7 +175,7 @@ function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd
         if( conversions > 0 ) {
         
           // Conversion rate MORE than average, Increase Bids.      
-          if( convRate > campaignConvRate && avgPosition > STOPLIMIT_POSITION  && oldBidModifier < STOPLIMIT_ADJUSTMENT) {
+          if( conversions >= THRESHOLD_INCREASE && convRate > campaignConvRate && avgPosition > STOPLIMIT_POSITION  && oldBidModifier < STOPLIMIT_ADJUSTMENT) {
             if( calculatedBidAdjustment > (oldBidModifier + BID_INCREMENT) ) {
               var newBidModifier = oldBidModifier + BID_INCREMENT;
               adSchedule.setBidModifier(newBidModifier);           
@@ -185,7 +185,7 @@ function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd
             }
             
           // Conversion rate LESS than the average. Decrease bids 10%.
-          } else if (convRate < campaignConvRate) {
+          } else if (conversions >= THRESHOLD_DECREASE && convRate < campaignConvRate) {
             if( calculatedBidAdjustment < (oldBidModifier - BID_INCREMENT) ) {
               var newBidModifier = Math.max(Math.min(oldBidModifier - BID_INCREMENT, 0.9),0.1);
               adSchedule.setBidModifier(newBidModifier);           
@@ -196,7 +196,7 @@ function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd
           }
         
           // Many Conversions. Increase bids.
-          if( conversions > THRESHOLD_SIGNIFICANT  && avgPosition > STOPLIMIT_POSITION  && oldBidModifier < STOPLIMIT_ADJUSTMENT) {
+          if( conversions >= THRESHOLD_SIGNIFICANT  && avgPosition > STOPLIMIT_POSITION  && oldBidModifier < STOPLIMIT_ADJUSTMENT) {
             if( calculatedBidAdjustment > (oldBidModifier + BID_INCREMENT) ) {
               var newBidModifier = oldBidModifier + BID_INCREMENT;
               adSchedule.setBidModifier(newBidModifier);           
@@ -257,22 +257,24 @@ function setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRange
       var desktopTarget = desktopTargetIterator.next();
       var desktopStats = desktopTarget.getStatsFor(dateRange, dateRangeEnd);
       var desktopConversionRate = desktopStats.getConversionRate();
+      var desktopConversions = desktopStats.getConversions();
     
       if( tabletTargetIterator.hasNext()) {
         var tabletTarget = tabletTargetIterator.next();
         var stats = tabletTarget.getStatsFor(dateRange, dateRangeEnd);
         var conversionRate = stats.getConversionRate();
+        var conversions = stats.getConversions();
         var avgPosition = stats.getAveragePosition()
         var newBidAdjustment = conversionRate / desktopConversionRate;
         var oldBidAdjustment = tabletTarget.getBidModifier();
              
 
-        if( (tabletNewBidAdjustment > (tabletOldBidAdjustment + BID_INCREMENT))  && avgPosition > STOPLIMIT_POSITION  && oldBidAdjustment < STOPLIMIT_ADJUSTMENT ) {
+        if( (tabletNewBidAdjustment > (tabletOldBidAdjustment + BID_INCREMENT))  && avgPosition > STOPLIMIT_POSITION  && oldBidAdjustment < STOPLIMIT_ADJUSTMENT &&  conversions >= THRESHOLD_INCREASE ) {
           var newBidModifier = oldBidAdjustment + BID_INCREMENT;
           tabletTarget.setBidModifier(newBidModifier);           
           Logger.log('*** UPDATE: Tablet Bid Modifer; '
                  + 'Increase bid: from ' + oldBidAdjustment + ' to ' + newBidModifier);            
-        } else if( newBidAdjustment < (oldBidAdjustment - BID_INCREMENT) ) {
+        } else if( newBidAdjustment < (oldBidAdjustment - BID_INCREMENT) &&  conversions >= THRESHOLD_DECREASE) {
           var newBidModifier = Math.max(Math.min(oldBidAdjustment - BID_INCREMENT, 0.95),0.1);
           tabletTarget.setBidModifier(newBidModifier);           
           Logger.log('*** UPDATE: Tablet Bid Modifer; '
@@ -284,16 +286,17 @@ function setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRange
         var mobileTarget = mobileTargetIterator.next();
         var stats = mobileTarget.getStatsFor(dateRange, dateRangeEnd);
         var conversionRate = stats.getConversionRate();
+        var conversions = stats.getConversions();
         var avgPosition = stats.getAveragePosition()
         var newBidAdjustment = conversionRate / desktopConversionRate;
         var oldBidAdjustment = mobileTarget.getBidModifier();
                 
-        if(( newBidAdjustment > (oldBidAdjustment + BID_INCREMENT))  && avgPosition > STOPLIMIT_POSITION  && oldBidAdjustment < STOPLIMIT_ADJUSTMENT) {
+        if(( newBidAdjustment > (oldBidAdjustment + BID_INCREMENT))  && avgPosition > STOPLIMIT_POSITION  && oldBidAdjustment < STOPLIMIT_ADJUSTMENT &&  conversions >= THRESHOLD_INCREASE) {
           var newBidModifier = oldBidAdjustment + BID_INCREMENT;
           mobileTarget.setBidModifier(newBidModifier);           
           Logger.log('*** UPDATE: Mobile Bid Modifer; '
                  + 'Increase bid: from ' + mobileOldBidAdjustment + ' to ' + newBidModifier);            
-        } else if( newBidAdjustment < (oldBidAdjustment - BID_INCREMENT) ) {
+        } else if( newBidAdjustment < (oldBidAdjustment - BID_INCREMENT) &&  conversions >= THRESHOLD_DECREASE ) {
           var newBidModifier = Math.max(Math.min(oldBidAdjustment - BID_INCREMENT, 0.9),0.1);
           mobileTarget.setBidModifier(newBidModifier);           
           Logger.log('*** UPDATE: Mobile Bid Modifer; '
