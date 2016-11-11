@@ -51,7 +51,7 @@ function main() {
 // ******************************************************************
 function setAdGroupBids(dateRange, dateRangeEnd) {
    Logger.log('\nSet Ad Group Bids, > ' + THRESHOLD_SIGNIFICANT + ' Conv : ' + dateRange);
-   var adGroupIterator = GetAdGroupSelector(dateRange, dateRangeEnd)
+   var adGroupIterator = getSelector(AdWordsApp.adGroups(), dateRange, dateRangeEnd)
       .withCondition("ConvertedClicks > " + THRESHOLD_SIGNIFICANT)
       .get();
   
@@ -83,7 +83,7 @@ function setAdGroupBids_highCost(dateRange, dateRangeEnd) {
    Logger.log('\nHigh Cost AdGroups : ' + dateRange);
     var highCostThreshold = (CONVERSION_VALUE * .80);
 
-   var adGroupIterator = GetAdGroupSelector(dateRange, dateRangeEnd)
+   var adGroupIterator = getSelector(AdWordsApp.adGroups(), dateRange, dateRangeEnd)
      .withCondition("ConvertedClicks <= " + THRESHOLD_SIGNIFICANT)
      .get();
 
@@ -123,7 +123,7 @@ function setAdGroupBids_highCost(dateRange, dateRangeEnd) {
 function setKeywordBids(dateRange, dateRangeEnd) {
   Logger.log('\nSet Keyword Bids : ' + dateRange);
   
-  var KeywordIterator = GetKeywordSelector(dateRange, dateRangeEnd)
+  var KeywordIterator = getSelector(dateRange, dateRangeEnd)
       .withCondition("ConvertedClicks > " + THRESHOLD_SIGNIFICANT)
       .get();
   
@@ -170,7 +170,7 @@ function setKeywordBids(dateRange, dateRangeEnd) {
 function setKeywordBids_highCost(dateRange, dateRangeEnd) {
   Logger.log('\nSet Keyword Bids, High Cost : ' + dateRange); 
   
-  var KeywordIterator = GetKeywordSelector(dateRange, dateRangeEnd)
+  var KeywordIterator = getSelector(AdWordsApp.keywords(), dateRange, dateRangeEnd)
      .withCondition("ConvertedClicks <= " + THRESHOLD_SIGNIFICANT)
      .get();
   
@@ -229,10 +229,10 @@ function setKeywordBids_highCost(dateRange, dateRangeEnd) {
 
 
 //**************************************************
-// Return Keyword Selector
+// Return Keyword or AdGroup Selector
 //**************************************************
-function GetKeywordSelector(dateRange, dateRangeEnd) {
- var keywordSelector = AdWordsApp.keywords()
+function getSelector(selector, dateRange, dateRangeEnd) {
+ var keywordSelector = selector
       .forDateRange(dateRange, dateRangeEnd)
       .withCondition("Status = ENABLED")
       .withCondition("CampaignStatus = ENABLED")
@@ -248,28 +248,6 @@ function GetKeywordSelector(dateRange, dateRangeEnd) {
   }
   
   return keywordSelector;
-}
-
-//***************************************************
-// Return AdGroup Selector
-//***************************************************
-function GetAdGroupSelector(dateRange, dateRangeEnd) {
-  var adGroupSelector = AdWordsApp.adGroups()
-      .forDateRange(dateRange, dateRangeEnd)
-      .withCondition("Status = ENABLED")
-      .withCondition("CampaignStatus = ENABLED")
-      .withCondition("AdGroupStatus = ENABLED");
-
-  if( TAG_IGNORE.length > 0 ) {
-    adGroupSelector = adGroupSelector.withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
-  }
-  
-  if( CAMPAIGN_INCLUDE.length > 0 ) {
-    adGroupSelector = adGroupSelector.withCondition("CampaignName CONTAINS_IGNORE_CASE '" + CAMPAIGN_INCLUDE + "'");    
-  }
-  
-  
-  return adGroupSelector;
 }
 
 
