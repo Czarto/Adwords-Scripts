@@ -15,6 +15,7 @@ var HIGH_COST = 100;    // How much is too much
 var STOPLIMIT_POSITION = 1.3; // Do not increase bids at this position or better
 
 
+
 function main() { 
   ////setAdGroupBids("ALL_TIME");
   
