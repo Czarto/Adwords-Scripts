@@ -1,8 +1,12 @@
-// Version: Delta
+// Version: Echo
 
 var BID_INCREMENT = 0.05;
 var DEBUG = false;
 var TAG_IGNORE = '';
+
+
+var LOCATION_IGNORE_COUNTRY = true; // Ignore location bid adjustments for Countries
+var LOCATION_IGNORE_STATE = false;  // Ignore location bid adjustments for States or Provinces
 
 var THRESHOLD_INCREASE = 10;    // Set this to 1 to increase bids more aggressively
 var THRESHOLD_DECREASE = 1;    // Set this to 1 to decrease bids more aggressively
@@ -65,7 +69,8 @@ function setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) 
     while (locationIterator.hasNext()) {
       var targetedLocation = locationIterator.next();
       
-      if( targetedLocation.getTargetType() != "Country" ) {
+      if( (LOCATION_IGNORE_COUNTRY && targetedLocation.getTargetType() != "Country") &&
+          (LOCATION_IGNORE_STATE && targetedLocation.getTargetType() != "State" && targetedLocation.getTargetType() != "Province" )) {
         var stats = targetedLocation.getStatsFor(dateRange, dateRangeEnd);
         var convRate = stats.getConversionRate();
         var conversions = stats.getConversions();
