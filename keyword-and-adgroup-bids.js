@@ -1,4 +1,4 @@
-// Version: Beta
+// Version: Charlie
 
 var CONVERSION_VALUE = 50.0;
 var TAG_IGNORE = 'Script Ignore';
@@ -208,20 +208,20 @@ function setKeywordBids_highCost(dateRange, dateRangeEnd) {
     } 
     
     // If current CPC is below top of page, increase to top of page if possible
-    else if( cpc_now < cpc_toppage && cpc_toppage < cpc_max ) {
+    /*else if( cpc_now < cpc_toppage && cpc_toppage < cpc_max ) {
       if( conversions >= 1 ) {
         keyword.bidding().setCpc(cpc_toppage);
         Logger.log('------ ' + keyword.getText() + ' increased to top of page;');
       }
-    }
+    }*/
     
     // If current CPC is below first page, increase to first page if possible
-    else if( cpc_now < cpc_firstpage && cpc_firstpage < cpc_max ) {
+    /*else if( cpc_now < cpc_firstpage && cpc_firstpage < cpc_max ) {
       if( conversions >= 1 ) {
         keyword.bidding().setCpc(cpc_firstpage);
         Logger.log('------ ' + keyword.getText() + ' increased to first of page;');
       }
-    }
+    }*/
   } 
 }
 
