@@ -1,7 +1,7 @@
 // Version: Foxtrot
 
 var BID_INCREMENT = 0.05;
-var DEBUG = true;
+var DEBUG = false;
 var TAG_IGNORE = '';
 
 
@@ -18,11 +18,11 @@ var STOPLIMIT_ADJUSTMENT = 1.50; // Do not increase adjustments above +50%
 
 function main() {
   setLocationBids(LAST_YEAR(), TODAY());
-  //setAdScheduleBids(LAST_YEAR(), TODAY());
+  setAdScheduleBids(LAST_YEAR(), TODAY());
   setMobileBidModifier(LAST_YEAR(), TODAY());
 
   setLocationBids("LAST_30_DAYS");
-  //setAdScheduleBids("LAST_30_DAYS");
+  setAdScheduleBids("LAST_30_DAYS");
   setMobileBidModifier("LAST_30_DAYS");
 }
 
@@ -270,7 +270,10 @@ function isBidIncreaseNeeded(stats, currentBid, baselineConversionRate) {
       && conversions >= THRESHOLD_INCREASE);
 
     if (DEBUG) {
-      Logger.log('          ^ Is increase needed? ' + isIncreaseNeeded);
+      Logger.log('          ^ Is increase needed? ' + isIncreaseNeeded
+        + ':: position:' + position + ' stoplimit:' + STOPLIMIT_POSITION
+        + ':: currentBid:' + currentBid + ' stoplimit:' + STOPLIMIT_ADJUSTMENT
+        + ':: conversions:' + conversions + ' threshold:' + THRESHOLD_INCREASE );
     }
 
     return (isIncreaseNeeded);
