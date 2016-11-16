@@ -1,7 +1,7 @@
 // Version: Foxtrot
 
 var BID_INCREMENT = 0.05;
-var DEBUG = false;
+var DEBUG = true;
 var TAG_IGNORE = '';
 
 
@@ -161,20 +161,15 @@ function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd
       var currentBidModifier = adSchedule.getBidModifier();
 
 
-      if (isBidChangeSignificant(currentBidModifier, targetBidModifier)) {
+
         if (conversions > 0) {
           if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
             increaseBid(adSchedule)
           } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
             decreaseBid(adSchedule);
           }
-
-          // Many Conversions. Increase bids again.
-          if (conversions >= THRESHOLD_SIGNIFICANT && avgPosition > STOPLIMIT_POSITION && currentBidModifier < STOPLIMIT_ADJUSTMENT) {
-            increaseBid(adSchedule)
-          }
         }
-      }
+      
 
       // Zero Conversions, Hight Cost. Drop bids.
       if (conversions == 0 && cost > HIGH_COST) {
