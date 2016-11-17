@@ -265,7 +265,7 @@ function isBidIncreaseNeeded(stats, currentBid, baselineConversionRate) {
 
   if (isBidChangeSignificant(currentBid, targetBid)) {
     var isIncreaseNeeded = (conversionRate > baselineConversionRate
-      && position > STOPLIMIT_POSITION
+      && (position > STOPLIMIT_POSITION || position == 0)
       && currentBid < STOPLIMIT_ADJUSTMENT
       && conversions >= THRESHOLD_INCREASE);
 
