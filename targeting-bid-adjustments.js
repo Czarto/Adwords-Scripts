@@ -346,7 +346,7 @@ function decreaseBid(target) {
   target.setBidModifier(newBidModifier);
 
   if (DEBUG) {
-    Logger.log('*** UPDATE *** ' + target.getEntityType() + ' : ' + target.getName()
+    Logger.log('*** UPDATE *** ' + target.getEntityType() + ' : ' + getName(target)
       + ', bid modifier: ' + newBidModifier
       + ' decrease bids');
   }
@@ -369,6 +369,17 @@ function getCampaignSelector(dateRange, dateRangeEnd, isShopping) {
   }
 
   return campaignSelector;
+}
+
+/*
+** Helper function for log formatting
+*/
+function getName(object) {
+  if(object.getEntityType == 'AdSchedule') {
+    return formatSchedule(object);
+  } else {
+    return object.getName();
+  }
 }
 
 
