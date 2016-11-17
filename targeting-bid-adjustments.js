@@ -24,6 +24,12 @@ function main() {
     setLocationBids("LAST_30_DAYS");
     setAdScheduleBids("LAST_30_DAYS");
     setMobileBidModifier("LAST_30_DAYS");
+
+    setLocationBids("LAST_14_DAYS");
+    setMobileBidModifier("LAST_14_DAYS");
+
+    setLocationBids("LAST_7_DAYS");
+    setMobileBidModifier("LAST_7_DAYS");
 }
 
 
