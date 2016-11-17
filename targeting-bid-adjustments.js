@@ -61,23 +61,20 @@ function setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) 
 
     Logger.log('-- CAMPAIGN: ' + campaign.getName());
 
-    var locationIterator = campaign.targeting().targetedLocations().get();
+    var iterator = campaign.targeting().targetedLocations().get();
 
-    Logger.log('----- Locations found : ' + locationIterator.totalNumEntities());
+    Logger.log('----- Locations found : ' + iterator.totalNumEntities());
 
-    while (locationIterator.hasNext()) {
-      var targetedLocation = locationIterator.next();
+    while (iterator.hasNext()) {
+      var targetedLocation = iterator.next();
 
-      Logger.log('-----     ' + targetedLocation.getTargetType() + ':' + targetedLocation.getName());
+      Logger.log('-----     ' + targetedLocation.getTargetType() + ':' + getName(targetedLocation));
 
       if (!(LOCATION_IGNORE_COUNTRY && targetedLocation.getTargetType() == "Country") &&
         !(LOCATION_IGNORE_STATE && (targetedLocation.getTargetType() == "State" || targetedLocation.getTargetType() == "Province"))) {
         var stats = targetedLocation.getStatsFor(dateRange, dateRangeEnd);
-        var convRate = stats.getConversionRate();
         var conversions = stats.getConversions();
         var cost = stats.getCost();
-        var avgPosition = stats.getAveragePosition();
-        var targetBidModifier = convRate / campaignConvRate;
         var currentBidModifier = targetedLocation.getBidModifier();
 
 
@@ -92,7 +89,7 @@ function setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) 
         }
 
 
-        // Zero Conversions, Hight Cost. Drop bids by 10%.        
+        // Zero Conversions, Hight Cost. Drop bids.        
         if (conversions == 0 && cost > HIGH_COST) {
           Logger.log('        High Cost');
           decreaseBid(targetedLocation);
@@ -135,44 +132,46 @@ function setAdScheduleBids(dateRange, dateRangeEnd) {
   setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
 }
 
-
-
-
+/*
+** Set schedule bid adjustments for all campaigns within the campaign iterator
+*/
 function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) {
 
   while (campaignIterator.hasNext()) {
     var campaign = campaignIterator.next();
     var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getClickConversionRate();
 
-    Logger.log(' ');
-    Logger.log('CAMPAIGN: ' + campaign.getName());
+    Logger.log('-- CAMPAIGN: ' + campaign.getName());
 
-    var adScheduleIterator = campaign.targeting().adSchedules().get();
+    var iterator = campaign.targeting().adSchedules().get();
 
-    while (adScheduleIterator.hasNext()) {
-      var adSchedule = adScheduleIterator.next();
+    Logger.log('----- Schedules found : ' + iterator.totalNumEntities());
+
+    while (iterator.hasNext()) {
+      var adSchedule = iterator.next();
+
+      Logger.log('-----     ' + getName(adSchedule));
 
       var stats = adSchedule.getStatsFor(dateRange, dateRangeEnd);
-      var convRate = stats.getConversionRate();
       var conversions = stats.getConversions();
       var cost = stats.getCost();
-      var avgPosition = stats.getAveragePosition();
-      var targetBidModifier = convRate / campaignConvRate;
       var currentBidModifier = adSchedule.getBidModifier();
 
 
 
-        if (conversions > 0) {
-          if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-            increaseBid(adSchedule)
-          } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-            decreaseBid(adSchedule);
-          }
+      if (conversions > 0) {
+        Logger.log('         ^ Convervions > 0');
+        if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
+          increaseBid(adSchedule)
+        } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
+          decreaseBid(adSchedule);
         }
-      
+      }
+
 
       // Zero Conversions, Hight Cost. Drop bids.
       if (conversions == 0 && cost > HIGH_COST) {
+        Logger.log('        High Cost');
         decreaseBid(adSchedule);
       }
     }
@@ -273,7 +272,7 @@ function isBidIncreaseNeeded(stats, currentBid, baselineConversionRate) {
       Logger.log('          ^ Is increase needed? ' + isIncreaseNeeded
         + ':: position:' + position + ' stoplimit:' + STOPLIMIT_POSITION
         + ':: currentBid:' + currentBid + ' stoplimit:' + STOPLIMIT_ADJUSTMENT
-        + ':: conversions:' + conversions + ' threshold:' + THRESHOLD_INCREASE );
+        + ':: conversions:' + conversions + ' threshold:' + THRESHOLD_INCREASE);
     }
 
     return (isIncreaseNeeded);
@@ -375,7 +374,7 @@ function getCampaignSelector(dateRange, dateRangeEnd, isShopping) {
 ** Helper function for log formatting
 */
 function getName(object) {
-  if(object.getEntityType() == 'AdSchedule') {
+  if (object.getEntityType() == 'AdSchedule') {
     return formatSchedule(object);
   } else {
     return object.getName();
