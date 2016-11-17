@@ -345,14 +345,12 @@ function increaseBid(target) {
 // Decrease bid adjustments by the default amount
 //
 function decreaseBid(target) {
-    var currentBidModifier = target.getBidModifier();
+    var newBidModifier = target.getBidModifier() - BID_INCREMENT;
+    newBidModifier = Math.max(newBidModifier, 0.1); // Modifier cannot be less than 0.1 (-90%)
 
-    // Reset bid modifier to 0% (1.0) if is is positive
-    // TODO: This logic should be moved elsewhere 
-    var newBidModifier = Math.min(currentBidModifier - BID_INCREMENT, 1);
+    // TODO: Reset bid modifier to 0% (1.0) if the current conversion rate is below avg conversion rate
+    // var newBidModifier = Math.min(currentBidModifier - BID_INCREMENT, 1);
 
-    // Modifier cannot be less than 0.1 (-90%)
-    newBidModifier = Math.max(newBidModifier, 0.1);
     target.setBidModifier(newBidModifier);
 
     if (DEBUG) {
