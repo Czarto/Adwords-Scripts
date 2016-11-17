@@ -17,36 +17,36 @@ var STOPLIMIT_POSITION = 1.3; // Do not increase bids at this position or better
 var STOPLIMIT_ADJUSTMENT = 1.50; // Do not increase adjustments above +50%
 
 function main() {
-  setLocationBids(LAST_YEAR(), TODAY());
-  setAdScheduleBids(LAST_YEAR(), TODAY());
-  setMobileBidModifier(LAST_YEAR(), TODAY());
+    setLocationBids(LAST_YEAR(), TODAY());
+    setAdScheduleBids(LAST_YEAR(), TODAY());
+    setMobileBidModifier(LAST_YEAR(), TODAY());
 
-  setLocationBids("LAST_30_DAYS");
-  setAdScheduleBids("LAST_30_DAYS");
-  setMobileBidModifier("LAST_30_DAYS");
+    setLocationBids("LAST_30_DAYS");
+    setAdScheduleBids("LAST_30_DAYS");
+    setMobileBidModifier("LAST_30_DAYS");
 }
 
 
 function setLocationBids(dateRange, dateRangeEnd) {
 
-  // Adjust for normal campaigns
-  var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd).get();
+    // Adjust for normal campaigns
+    var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd).get();
 
-  Logger.log(' ')
-  Logger.log('### ADJUST LOCATION TARGETING BIDS ###');
-  Logger.log('Non-Shopping Campaigns');
-  Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
+    Logger.log(' ')
+    Logger.log('### ADJUST LOCATION TARGETING BIDS ###');
+    Logger.log('Non-Shopping Campaigns');
+    Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
 
-  setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
+    setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
 
-  // Adjust for Shopping campaigns
-  var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd, true).get();
+    // Adjust for Shopping campaigns
+    var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd, true).get();
 
-  Logger.log(' ')
-  Logger.log('Shopping Campaigns');
-  Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
+    Logger.log(' ')
+    Logger.log('Shopping Campaigns');
+    Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
 
-  setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
+    setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
 }
 
 
@@ -55,58 +55,58 @@ function setLocationBids(dateRange, dateRangeEnd) {
 //
 function setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) {
 
-  while (campaignIterator.hasNext()) {
-    var campaign = campaignIterator.next();
-    var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getClickConversionRate();
+    while (campaignIterator.hasNext()) {
+        var campaign = campaignIterator.next();
+        var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getClickConversionRate();
 
-    Logger.log('-- CAMPAIGN: ' + campaign.getName());
+        Logger.log('-- CAMPAIGN: ' + campaign.getName());
 
-    var iterator = campaign.targeting().targetedLocations().get();
+        var iterator = campaign.targeting().targetedLocations().get();
 
-    Logger.log('----- Locations found : ' + iterator.totalNumEntities());
+        Logger.log('----- Locations found : ' + iterator.totalNumEntities());
 
-    while (iterator.hasNext()) {
-      var targetedLocation = iterator.next();
+        while (iterator.hasNext()) {
+            var targetedLocation = iterator.next();
 
-      Logger.log('-----     ' + targetedLocation.getTargetType() + ':' + getName(targetedLocation));
+            Logger.log('-----     ' + targetedLocation.getTargetType() + ':' + getName(targetedLocation));
 
-      if (!(LOCATION_IGNORE_COUNTRY && targetedLocation.getTargetType() == "Country") &&
-        !(LOCATION_IGNORE_STATE && (targetedLocation.getTargetType() == "State" || targetedLocation.getTargetType() == "Province"))) {
-        var stats = targetedLocation.getStatsFor(dateRange, dateRangeEnd);
-        var conversions = stats.getConversions();
-        var cost = stats.getCost();
-        var currentBidModifier = targetedLocation.getBidModifier();
+            if (!(LOCATION_IGNORE_COUNTRY && targetedLocation.getTargetType() == "Country") &&
+                !(LOCATION_IGNORE_STATE && (targetedLocation.getTargetType() == "State" || targetedLocation.getTargetType() == "Province"))) {
+                var stats = targetedLocation.getStatsFor(dateRange, dateRangeEnd);
+                var conversions = stats.getConversions();
+                var cost = stats.getCost();
+                var currentBidModifier = targetedLocation.getBidModifier();
 
 
-        // At least 1 conversion
-        if (conversions > 0) {
-          Logger.log('         ^ Convervions > 0');
-          if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-            increaseBid(targetedLocation);
-          } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-            decreaseBid(targetedLocation);
-          }
+                // At least 1 conversion
+                if (conversions > 0) {
+                    Logger.log('         ^ Convervions > 0');
+                    if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
+                        increaseBid(targetedLocation);
+                    } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
+                        decreaseBid(targetedLocation);
+                    }
+                }
+
+
+                // Zero Conversions, Hight Cost. Drop bids.        
+                if (conversions == 0 && cost > HIGH_COST) {
+                    Logger.log('        High Cost');
+                    decreaseBid(targetedLocation);
+                }
+            } else {
+                var message = '-----     ^ Ignoring ';
+
+                if (LOCATION_IGNORE_COUNTRY && targetedLocation.getTargetType() == "Country") {
+                    message = message + 'Countries';
+                } else if (LOCATION_IGNORE_STATE && (targetedLocation.getTargetType() == "State" || targetedLocation.getTargetType() == "Province")) {
+                    message = message + 'States and Provinces';
+                }
+
+                Logger.log(message);
+            }
         }
-
-
-        // Zero Conversions, Hight Cost. Drop bids.        
-        if (conversions == 0 && cost > HIGH_COST) {
-          Logger.log('        High Cost');
-          decreaseBid(targetedLocation);
-        }
-      } else {
-        var message = '-----     ^ Ignoring ';
-
-        if (LOCATION_IGNORE_COUNTRY && targetedLocation.getTargetType() == "Country") {
-          message = message + 'Countries';
-        } else if (LOCATION_IGNORE_STATE && (targetedLocation.getTargetType() == "State" || targetedLocation.getTargetType() == "Province")) {
-          message = message + 'States and Provinces';
-        }
-
-        Logger.log(message);
-      }
     }
-  }
 }
 
 
@@ -114,22 +114,22 @@ function setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) 
 
 function setAdScheduleBids(dateRange, dateRangeEnd) {
 
-  var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd).get();
+    var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd).get();
 
-  Logger.log(' ')
-  Logger.log('### ADJUST AD SCHEDULE TARGETING BIDS ###');
-  Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
+    Logger.log(' ')
+    Logger.log('### ADJUST AD SCHEDULE TARGETING BIDS ###');
+    Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
 
-  setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
+    setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
 
-  // Adjust for Shopping campaigns
-  var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd, true).get();
+    // Adjust for Shopping campaigns
+    var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd, true).get();
 
-  Logger.log(' ')
-  Logger.log('Shopping Campaigns');
-  Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
+    Logger.log(' ')
+    Logger.log('Shopping Campaigns');
+    Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
 
-  setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
+    setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
 }
 
 /*
@@ -137,45 +137,45 @@ function setAdScheduleBids(dateRange, dateRangeEnd) {
 */
 function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) {
 
-  while (campaignIterator.hasNext()) {
-    var campaign = campaignIterator.next();
-    var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getClickConversionRate();
+    while (campaignIterator.hasNext()) {
+        var campaign = campaignIterator.next();
+        var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getClickConversionRate();
 
-    Logger.log('-- CAMPAIGN: ' + campaign.getName());
+        Logger.log('-- CAMPAIGN: ' + campaign.getName());
 
-    var iterator = campaign.targeting().adSchedules().get();
+        var iterator = campaign.targeting().adSchedules().get();
 
-    Logger.log('----- Schedules found : ' + iterator.totalNumEntities());
+        Logger.log('----- Schedules found : ' + iterator.totalNumEntities());
 
-    while (iterator.hasNext()) {
-      var adSchedule = iterator.next();
+        while (iterator.hasNext()) {
+            var adSchedule = iterator.next();
 
-      Logger.log('-----     ' + getName(adSchedule));
+            Logger.log('-----     ' + getName(adSchedule));
 
-      var stats = adSchedule.getStatsFor(dateRange, dateRangeEnd);
-      var conversions = stats.getConversions();
-      var cost = stats.getCost();
-      var currentBidModifier = adSchedule.getBidModifier();
+            var stats = adSchedule.getStatsFor(dateRange, dateRangeEnd);
+            var conversions = stats.getConversions();
+            var cost = stats.getCost();
+            var currentBidModifier = adSchedule.getBidModifier();
 
 
 
-      if (conversions > 0) {
-        Logger.log('         ^ Convervions > 0');
-        if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-          increaseBid(adSchedule)
-        } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-          decreaseBid(adSchedule);
+            if (conversions > 0) {
+                Logger.log('         ^ Convervions > 0');
+                if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
+                    increaseBid(adSchedule)
+                } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
+                    decreaseBid(adSchedule);
+                }
+            }
+
+
+            // Zero Conversions, Hight Cost. Drop bids.
+            if (conversions == 0 && cost > HIGH_COST) {
+                Logger.log('        High Cost');
+                decreaseBid(adSchedule);
+            }
         }
-      }
-
-
-      // Zero Conversions, Hight Cost. Drop bids.
-      if (conversions == 0 && cost > HIGH_COST) {
-        Logger.log('        High Cost');
-        decreaseBid(adSchedule);
-      }
     }
-  }
 }
 
 
@@ -183,72 +183,72 @@ function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd
 // Mobile Bids
 function setMobileBidModifier(dateRange, dateRangeEnd) {
 
-  var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd).get();
+    var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd).get();
 
-  Logger.log(' ')
-  Logger.log('### ADJUST MOBILE TARGETING BIDS ###');
-  Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
+    Logger.log(' ')
+    Logger.log('### ADJUST MOBILE TARGETING BIDS ###');
+    Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
 
-  setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRangeEnd)
+    setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRangeEnd)
 
-  // Adjust for Shopping campaigns
-  var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd, true).get();
+    // Adjust for Shopping campaigns
+    var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd, true).get();
 
-  Logger.log(' ')
-  Logger.log('Shopping Campaigns');
-  Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
+    Logger.log(' ')
+    Logger.log('Shopping Campaigns');
+    Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
 
-  setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRangeEnd);
+    setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRangeEnd);
 }
 
 
 
 function setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRangeEnd) {
 
-  while (campaignIterator.hasNext()) {
-    var campaign = campaignIterator.next();
+    while (campaignIterator.hasNext()) {
+        var campaign = campaignIterator.next();
 
-    Logger.log(' ');
-    Logger.log('CAMPAIGN: ' + campaign.getName());
+        Logger.log(' ');
+        Logger.log('CAMPAIGN: ' + campaign.getName());
 
-    var platforms = campaign.targeting().platforms();
-    var desktopTargetIterator = platforms.desktop().get();
-    var tabletTargetIterator = platforms.tablet().get();
-    var mobileTargetIterator = platforms.mobile().get();
+        var platforms = campaign.targeting().platforms();
+        var desktopTargetIterator = platforms.desktop().get();
+        var tabletTargetIterator = platforms.tablet().get();
+        var mobileTargetIterator = platforms.mobile().get();
 
-    if (desktopTargetIterator.hasNext()) {
-      var desktopTarget = desktopTargetIterator.next();
-      var desktopStats = desktopTarget.getStatsFor(dateRange, dateRangeEnd);
-      var desktopConversionRate = desktopStats.getConversionRate();
+        if (desktopTargetIterator.hasNext()) {
+            var desktopTarget = desktopTargetIterator.next();
+            var desktopStats = desktopTarget.getStatsFor(dateRange, dateRangeEnd);
+            var desktopConversionRate = desktopStats.getConversionRate();
 
-      if (tabletTargetIterator.hasNext()) {
-        var tabletTarget = tabletTargetIterator.next();
-        var stats = tabletTarget.getStatsFor(dateRange, dateRangeEnd);
-        var currentBidModifier = tabletTarget.getBidModifier();
+            if (tabletTargetIterator.hasNext()) {
+                var tabletTarget = tabletTargetIterator.next();
+                var stats = tabletTarget.getStatsFor(dateRange, dateRangeEnd);
+                var currentBidModifier = tabletTarget.getBidModifier();
 
-        if (isBidIncreaseNeeded(stats, currentBidModifier, desktopConversionRate)) {
-          increaseBid(tabletTarget);
-        } else if (isBidDecreaseNeeded(stats, currentBidModifier, desktopConversionRate)) {
-          decreaseBid(tabletTarget);
+                if (isBidIncreaseNeeded(stats, currentBidModifier, desktopConversionRate)) {
+                    increaseBid(tabletTarget);
+                } else if (isBidDecreaseNeeded(stats, currentBidModifier, desktopConversionRate)) {
+                    decreaseBid(tabletTarget);
+                }
+
+            }
+
+            if (mobileTargetIterator.hasNext()) {
+                var mobileTarget = mobileTargetIterator.next();
+                var stats = mobileTarget.getStatsFor(dateRange, dateRangeEnd);
+                var currentBidModifier = mobileTarget.getBidModifier();
+
+
+                if (isBidIncreaseNeeded(stats, currentBidModifier, desktopConversionRate)) {
+                    increaseBid(mobileTarget);
+                } else if (isBidDecreaseNeeded(stats, currentBidModifier, desktopConversionRate)) {
+                    decreaseBid(mobileTarget);
+                }
+
+            }
         }
-
-      }
-
-      if (mobileTargetIterator.hasNext()) {
-        var mobileTarget = mobileTargetIterator.next();
-        var stats = mobileTarget.getStatsFor(dateRange, dateRangeEnd);
-        var currentBidModifier = mobileTarget.getBidModifier();
-
-
-        if (isBidIncreaseNeeded(stats, currentBidModifier, desktopConversionRate)) {
-          increaseBid(mobileTarget);
-        } else if (isBidDecreaseNeeded(stats, currentBidModifier, desktopConversionRate)) {
-          decreaseBid(mobileTarget);
-        }
-
-      }
     }
-  }
 }
 
 
@@ -257,28 +257,30 @@ function setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRange
 // Returns true if a bid increase is needed, false otherwise
 //
 function isBidIncreaseNeeded(stats, currentBid, baselineConversionRate) {
-  var conversions = stats.getConversions();
-  var conversionRate = stats.getConversionRate();
-  var position = stats.getAveragePosition();
-  var targetBid = (conversionRate / baselineConversionRate)
+    var conversions = stats.getConversions();
+    var conversionRate = stats.getConversionRate();
+    var position = stats.getAveragePosition();
+    var targetBid = (conversionRate / baselineConversionRate)
 
-  if (isBidChangeSignificant(currentBid, targetBid)) {
-    var isIncreaseNeeded = (conversionRate > baselineConversionRate
-      && (position > STOPLIMIT_POSITION || position == 0)
-      && currentBid < STOPLIMIT_ADJUSTMENT
-      && conversions >= THRESHOLD_INCREASE);
+    if (isBidChangeSignificant(currentBid, targetBid)) {
+        var isIncreaseNeeded = (conversionRate > baselineConversionRate
+            && (position > STOPLIMIT_POSITION || position == 0)
+            && currentBid < STOPLIMIT_ADJUSTMENT
+            && conversions >= THRESHOLD_INCREASE);
 
-    if (DEBUG) {
-      Logger.log('          ^ Is increase needed? ' + isIncreaseNeeded
-        + ':: position:' + position + ' stoplimit:' + STOPLIMIT_POSITION
-        + ':: currentBid:' + currentBid + ' stoplimit:' + STOPLIMIT_ADJUSTMENT
-        + ':: conversions:' + conversions + ' threshold:' + THRESHOLD_INCREASE);
+        if (DEBUG) {
+            Logger.log('          ^ Is increase needed? ' + isIncreaseNeeded
+                + ':: targetBid:' + targetBid + ' currentBid:' + currentBid
+                + ':: conversionRate:' + conversionRate + ' baseline:' + baselineConversionRate
+                + ':: position:' + position + ' stoplimit:' + STOPLIMIT_POSITION
+                + ':: currentBid:' + currentBid + ' stoplimit:' + STOPLIMIT_ADJUSTMENT
+                + ':: conversions:' + conversions + ' threshold:' + THRESHOLD_INCREASE);
+        }
+
+        return (isIncreaseNeeded);
+    } else {
+        return false;
     }
-
-    return (isIncreaseNeeded);
-  } else {
-    return false;
-  }
 }
 
 
@@ -286,15 +288,24 @@ function isBidIncreaseNeeded(stats, currentBid, baselineConversionRate) {
 // Returns true if a bid decrease is needed, false otherwise
 //
 function isBidDecreaseNeeded(stats, currentBid, baselineConversionRate) {
-  var conversions = stats.getConversions();
-  var conversionRate = stats.getConversionRate();
-  var targetBid = (conversionRate / baselineConversionRate)
+    var conversions = stats.getConversions();
+    var conversionRate = stats.getConversionRate();
+    var targetBid = (conversionRate / baselineConversionRate)
 
-  if (isBidChangeSignificant(currentBid, targetBid)) {
-    return (conversionRate < baselineConversionRate && conversions >= THRESHOLD_DECREASE);
-  } else {
-    return false;
-  }
+    if (isBidChangeSignificant(currentBid, targetBid)) {
+        var isDecreaseNeeded = (conversionRate < baselineConversionRate && conversions >= THRESHOLD_DECREASE);
+
+        if (DEBUG) {
+            Logger.log('          ^ Is decrease needed? ' + isDecreaseNeeded
+                + ':: targetBid:' + targetBid + ' currentBid:' + currentBid
+                + ':: conversionRate:' + conversionRate + ' baseline:' + baselineConversionRate
+                + ':: conversions:' + conversions + ' threshold:' + THRESHOLD_DECREASE);
+        }
+
+        return (isDecreaseNeeded);
+    } else {
+        return false;
+    }
 }
 
 
@@ -303,13 +314,13 @@ function isBidDecreaseNeeded(stats, currentBid, baselineConversionRate) {
 // returns true if the difference between the two bids is >= BID_INCREMENT
 //
 function isBidChangeSignificant(bid1, bid2) {
-  var isSignificant = (Math.abs(bid1 - bid2) >= BID_INCREMENT);
+    var isSignificant = (Math.abs(bid1 - bid2) >= BID_INCREMENT);
 
-  if (DEBUG) {
-    Logger.log('          ^ Is bid change significant? BID1:' + bid1 + ' BID2:' + bid2 + ' :: ' + isSignificant);
-  }
+    if (DEBUG) {
+        Logger.log('          ^ Is bid change significant? BID1:' + bid1 + ' BID2:' + bid2 + ' :: ' + isSignificant);
+    }
 
-  return (isSignificant)
+    return (isSignificant)
 }
 
 
@@ -318,14 +329,14 @@ function isBidChangeSignificant(bid1, bid2) {
 // Increase bid adjustments by the default amount
 //
 function increaseBid(target) {
-  var newBidModifier = target.getBidModifier() + BID_INCREMENT;
-  target.setBidModifier(newBidModifier);
+    var newBidModifier = target.getBidModifier() + BID_INCREMENT;
+    target.setBidModifier(newBidModifier);
 
-  if (DEBUG) {
-    Logger.log('*** UPDATE *** ' + target.getEntityType() + ' : ' + getName(target)
-      + ', bid modifier: ' + newBidModifier
-      + ' increase bids');
-  }
+    if (DEBUG) {
+        Logger.log('*** UPDATE *** ' + target.getEntityType() + ' : ' + getName(target)
+            + ', bid modifier: ' + newBidModifier
+            + ' increase bids');
+    }
 }
 
 
@@ -334,21 +345,21 @@ function increaseBid(target) {
 // Decrease bid adjustments by the default amount
 //
 function decreaseBid(target) {
-  var currentBidModifier = target.getBidModifier();
+    var currentBidModifier = target.getBidModifier();
 
-  // Reset bid modifier to 0% (1.0) if is is positive
-  // TODO: This logic should be moved elsewhere 
-  var newBidModifier = Math.min(currentBidModifier - BID_INCREMENT, 1);
+    // Reset bid modifier to 0% (1.0) if is is positive
+    // TODO: This logic should be moved elsewhere 
+    var newBidModifier = Math.min(currentBidModifier - BID_INCREMENT, 1);
 
-  // Modifier cannot be less than 0.1 (-90%)
-  newBidModifier = Math.max(newBidModifier, 0.1);
-  target.setBidModifier(newBidModifier);
+    // Modifier cannot be less than 0.1 (-90%)
+    newBidModifier = Math.max(newBidModifier, 0.1);
+    target.setBidModifier(newBidModifier);
 
-  if (DEBUG) {
-    Logger.log('*** UPDATE *** ' + target.getEntityType() + ' : ' + getName(target)
-      + ', bid modifier: ' + newBidModifier
-      + ' decrease bids');
-  }
+    if (DEBUG) {
+        Logger.log('*** UPDATE *** ' + target.getEntityType() + ' : ' + getName(target)
+            + ', bid modifier: ' + newBidModifier
+            + ' decrease bids');
+    }
 }
 
 
@@ -356,29 +367,29 @@ function decreaseBid(target) {
 // Returns the CampaignIterator object
 //
 function getCampaignSelector(dateRange, dateRangeEnd, isShopping) {
-  var campaignSelector = isShopping ? AdWordsApp.shoppingCampaigns() : AdWordsApp.campaigns();
+    var campaignSelector = isShopping ? AdWordsApp.shoppingCampaigns() : AdWordsApp.campaigns();
 
-  campaignSelector = campaignSelector
-    .forDateRange(dateRange, dateRangeEnd)
-    .withCondition("Status = ENABLED");
-
-  if (TAG_IGNORE.length > 0) {
     campaignSelector = campaignSelector
-      .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
-  }
+        .forDateRange(dateRange, dateRangeEnd)
+        .withCondition("Status = ENABLED");
 
-  return campaignSelector;
+    if (TAG_IGNORE.length > 0) {
+        campaignSelector = campaignSelector
+            .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
+    }
+
+    return campaignSelector;
 }
 
 /*
 ** Helper function for log formatting
 */
 function getName(object) {
-  if (object.getEntityType() == 'AdSchedule') {
-    return formatSchedule(object);
-  } else {
-    return object.getName();
-  }
+    if (object.getEntityType() == 'AdSchedule') {
+        return formatSchedule(object);
+    } else {
+        return object.getName();
+    }
 }
 
 
@@ -386,24 +397,24 @@ function getName(object) {
 // Date formatting for logging
 //
 function formatSchedule(schedule) {
-  function zeroPad(number) { return Utilities.formatString('%02d', number); }
-  return schedule.getDayOfWeek() + ', ' +
-    schedule.getStartHour() + ':' + zeroPad(schedule.getStartMinute()) +
-    ' to ' + schedule.getEndHour() + ':' + zeroPad(schedule.getEndMinute());
+    function zeroPad(number) { return Utilities.formatString('%02d', number); }
+    return schedule.getDayOfWeek() + ', ' +
+        schedule.getStartHour() + ':' + zeroPad(schedule.getStartMinute()) +
+        ' to ' + schedule.getEndHour() + ':' + zeroPad(schedule.getEndMinute());
 }
 
 function TODAY() {
-  var today = new Date();
-  var dd = today.getDate();
-  var mm = today.getMonth() + 1; //January is 0!
-  var yyyy = today.getFullYear();
+    var today = new Date();
+    var dd = today.getDate();
+    var mm = today.getMonth() + 1; //January is 0!
+    var yyyy = today.getFullYear();
 
-  return { year: yyyy, month: mm, day: dd };
+    return { year: yyyy, month: mm, day: dd };
 }
 
 function LAST_YEAR() {
-  var today = TODAY();
+    var today = TODAY();
 
-  today.year = today.year - 1;
-  return today;
+    today.year = today.year - 1;
+    return today;
 }
