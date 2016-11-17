@@ -263,7 +263,7 @@ function isBidIncreaseNeeded(stats, currentBid, baselineConversionRate) {
     var targetBid = (conversionRate / baselineConversionRate)
 
     if (isBidChangeSignificant(currentBid, targetBid)) {
-        var isIncreaseNeeded = (conversionRate > baselineConversionRate
+        var isIncreaseNeeded = (targetBid > currentBid
             && (position > STOPLIMIT_POSITION || position == 0)
             && currentBid < STOPLIMIT_ADJUSTMENT
             && conversions >= THRESHOLD_INCREASE);
@@ -293,7 +293,7 @@ function isBidDecreaseNeeded(stats, currentBid, baselineConversionRate) {
     var targetBid = (conversionRate / baselineConversionRate)
 
     if (isBidChangeSignificant(currentBid, targetBid)) {
-        var isDecreaseNeeded = (conversionRate < baselineConversionRate && conversions >= THRESHOLD_DECREASE);
+        var isDecreaseNeeded = (targetBid < currentBid && conversions >= THRESHOLD_DECREASE);
 
         if (DEBUG) {
             Logger.log('          ^ Is decrease needed? ' + isDecreaseNeeded
