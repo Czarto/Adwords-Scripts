@@ -1,4 +1,4 @@
-// Version: Charlie
+// Version: Dexter
 
 var CONVERSION_VALUE = 50.0;
 var TAG_IGNORE = 'Script Ignore';
@@ -17,8 +17,6 @@ var STOPLIMIT_POSITION = 1.3; // Do not increase bids at this position or better
 
 
 function main() { 
-  ////setAdGroupBids("ALL_TIME");
-  
   Logger.log('\n***** 1 YEAR *****');  
   setAdGroupBids(LAST_YEAR(), TODAY());
   setAdGroupBids_highCost(LAST_YEAR(), TODAY());
@@ -123,7 +121,7 @@ function setAdGroupBids_highCost(dateRange, dateRangeEnd) {
 function setKeywordBids(dateRange, dateRangeEnd) {
   Logger.log('\nSet Keyword Bids : ' + dateRange);
   
-  var KeywordIterator = getSelector(dateRange, dateRangeEnd)
+  var KeywordIterator = getSelector(AdWordsApp.keywords(), dateRange, dateRangeEnd)
       .withCondition("ConvertedClicks > " + THRESHOLD_SIGNIFICANT)
       .get();
   
@@ -232,7 +230,7 @@ function setKeywordBids_highCost(dateRange, dateRangeEnd) {
 // Return Keyword or AdGroup Selector
 //**************************************************
 function getSelector(selector, dateRange, dateRangeEnd) {
- var keywordSelector = selector
+ var aSelector = selector
       .forDateRange(dateRange, dateRangeEnd)
       .withCondition("Status = ENABLED")
       .withCondition("CampaignStatus = ENABLED")
@@ -240,14 +238,14 @@ function getSelector(selector, dateRange, dateRangeEnd) {
       .withCondition("Clicks > 0");
   
   if( TAG_IGNORE.length > 0 ) {
-    keywordSelector = keywordSelector.withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
+    aSelector = aSelector.withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
   }
  
   if( CAMPAIGN_INCLUDE.length > 0 ) {
-    keywordSelector = keywordSelector.withCondition("CampaignName CONTAINS_IGNORE_CASE '" + CAMPAIGN_INCLUDE + "'");    
+    aSelector = aSelector.withCondition("CampaignName CONTAINS_IGNORE_CASE '" + CAMPAIGN_INCLUDE + "'");    
   }
   
-  return keywordSelector;
+  return aSelector;
 }
 
 
