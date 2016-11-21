@@ -3,6 +3,7 @@
 var CONVERSION_VALUE = 50.0;
 var TAG_IGNORE = 'Script Ignore';
 var CAMPAIGN_INCLUDE = ''; // Only include Adgroups and keywords in Campaigns with this text string in the name
+var CAMPAIGN_EXCLUDE = ''; // Exclude Adgroups and keywords in Campaigns with this text string in the name
 
 var BID_INCREMENT = 0.25;
 
@@ -243,6 +244,10 @@ function getSelector(selector, dateRange, dateRangeEnd) {
  
   if( CAMPAIGN_INCLUDE.length > 0 ) {
     aSelector = aSelector.withCondition("CampaignName CONTAINS_IGNORE_CASE '" + CAMPAIGN_INCLUDE + "'");    
+  }
+
+  if( CAMPAIGN_EXCLUDE.length > 0 ) {
+    aSelector = aSelector.withCondition("CampaignName DOES_NOT_CONTAIN_IGNORE_CASE '" + CAMPAIGN_EXCLUDE + "'");
   }
   
   return aSelector;
