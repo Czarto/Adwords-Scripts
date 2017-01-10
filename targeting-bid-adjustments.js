@@ -1,4 +1,4 @@
-// Version: Gecko
+// Version: Hector
 
 var BID_INCREMENT = 0.05;
 var DEBUG = false;
