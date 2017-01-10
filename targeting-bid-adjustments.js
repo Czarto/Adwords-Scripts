@@ -217,10 +217,9 @@ function setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRange
         Logger.log(' ');
         Logger.log('CAMPAIGN: ' + campaign.getName());
 
-        var platforms = campaign.targeting().platforms();
-        var desktopTargetIterator = platforms.desktop().get();
-        var tabletTargetIterator = platforms.tablet().get();
-        var mobileTargetIterator = platforms.mobile().get();
+        var desktopTargetIterator = campaign.targeting().platforms().desktop().get();
+        var tabletTargetIterator = campaign.targeting().platforms().tablet().get();
+        var mobileTargetIterator = campaign.targeting().platforms().mobile().get();
 
         if (desktopTargetIterator.hasNext()) {
             var desktopTarget = desktopTargetIterator.next();
