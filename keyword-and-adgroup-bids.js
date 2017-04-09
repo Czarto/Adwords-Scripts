@@ -1,4 +1,4 @@
-// Version: Dexter
+// Version: Iota
 
 var CONVERSION_VALUE = 50.0;
 var TAG_IGNORE = 'Script Ignore';
@@ -59,7 +59,7 @@ function setAdGroupBids(dateRange, dateRangeEnd) {
   while (adGroupIterator.hasNext()) {
     var adGroup = adGroupIterator.next();
     var stats = adGroup.getStatsFor(dateRange, dateRangeEnd);
-    var conv_rate = stats.getClickConversionRate();
+    var conv_rate = stats.getConversionRate();
     var current_cpc = adGroup.bidding().getCpc();
     var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
     
@@ -92,10 +92,10 @@ function setAdGroupBids_highCost(dateRange, dateRangeEnd) {
   while (adGroupIterator.hasNext()) {
     var adGroup = adGroupIterator.next();
     var stats = adGroup.getStatsFor(dateRange, dateRangeEnd);
-    var conversions = stats.getConvertedClicks();
+    var conversions = stats.getConversions();
     var clicks = stats.getClicks();
     var cost = stats.getCost();
-    var conv_rate = stats.getClickConversionRate();
+    var conv_rate = stats.getConversionRate();
 
     if( conversions == 0 && clicks > 0) {
       conversions = 1;
@@ -131,7 +131,7 @@ function setKeywordBids(dateRange, dateRangeEnd) {
   while (KeywordIterator.hasNext()) {
     var keyword = KeywordIterator.next();
     var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
-    var conv_rate = stats.getClickConversionRate();
+    var conv_rate = stats.getConversionRate();
     var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
 
     // Temp variables
@@ -180,10 +180,10 @@ function setKeywordBids_highCost(dateRange, dateRangeEnd) {
   while (KeywordIterator.hasNext()) {
     var keyword = KeywordIterator.next();
     var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
-    var conversions = stats.getConvertedClicks();
+    var conversions = stats.getConversions();
     var clicks = stats.getClicks();
     var cost = stats.getCost();
-    var conv_rate = stats.getClickConversionRate();
+    var conv_rate = stats.getConversionRate();
     var cpc_firstpage = keyword.getFirstPageCpc();
     var cpc_toppage = keyword.getTopOfPageCpc();
     var cpc_now = keyword.bidding().getCpc();

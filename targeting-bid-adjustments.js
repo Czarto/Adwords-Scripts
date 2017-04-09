@@ -1,4 +1,4 @@
-// Version: Hector
+// Version: Iota
 
 var BID_INCREMENT = 0.05;
 var DEBUG = false;
@@ -63,7 +63,7 @@ function setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) 
 
     while (campaignIterator.hasNext()) {
         var campaign = campaignIterator.next();
-        var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getClickConversionRate();
+        var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getConversionRate();
 
         Logger.log('-- CAMPAIGN: ' + campaign.getName());
 
@@ -145,7 +145,7 @@ function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd
 
     while (campaignIterator.hasNext()) {
         var campaign = campaignIterator.next();
-        var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getClickConversionRate();
+        var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getConversionRate();
 
         Logger.log('-- CAMPAIGN: ' + campaign.getName());
 
