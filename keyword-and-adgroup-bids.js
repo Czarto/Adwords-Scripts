@@ -1,57 +1,172 @@
-// Version: Iota
+// Version: V2 Alpha
 
-var CONVERSION_VALUE = 50.0;
+/***********
+
+MIT License
+
+Copyright (c) 2016-2017 Alex Czartoryski
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+**********/
+
+var CONVERSION_VALUE = 40.0;
+var HIGHCOST_VALUE = CONVERSION_VALUE; // How much is too much
+
+var MAX_BID_INCREASE = 1.0;  // In dollars. Set to 0 for no limit
+var THRESHOLD_INCREASE = 10;    // Minimum number of conversions to make a bid increase. Set this to 1 to increase bids most aggressively
+
+var STOPLIMIT_POSITION = 1.2;  // Do not increase bids if the keyword is already at this position or better
+
+// LOGIC FLAGS
+var AGGRESSIVE_BIDDING = true;   // Don't lower bids unless the current CPA is over  HIGHCOST_VALUE.
+var ROUNDDOWN_BIDS = false; // Bids are rounded down to the nearest quarter dollar
+
+// LABELS
+var LABEL_PROCESSING = 'Processing';
 var TAG_IGNORE = 'Script Ignore';
+
+// CAMPAIGN FILTERS
 var CAMPAIGN_INCLUDE = ''; // Only include Adgroups and keywords in Campaigns with this text string in the name
 var CAMPAIGN_EXCLUDE = ''; // Exclude Adgroups and keywords in Campaigns with this text string in the name
 
-var BID_INCREMENT = 0.25;
 
-var THRESHOLD_INCREASE = 10;    // Set this to 1 to increase bids more aggressively
-var THRESHOLD_DECREASE = 1;    // Set this to 1 to decrease bids more aggressively
-var THRESHOLD_SIGNIFICANT = 20; // Extra bid adjustment happens when this many conversions
-
-var HIGH_COST = 100;    // How much is too much
-
-var STOPLIMIT_POSITION = 1.3; // Do not increase bids at this position or better
-
-
+// TODO: Set keyword bids to adgroup bids when they are within range
+// TODO: Set keywords bids to adgroup bids when they are "low volume"
+// TODO: Set keywords bids to adgroup bids if they are below threshold, but conversion rate warrents it
+// TODO: (Last) Increase bids to top of page, if low volume, low cost, and has not been processed yet.
+// TODO: (Last) Increase bids to first page, if low volume, low cost, and has not been processed yet.
+// TODO: Check if 'Script Ignore' works
 
 function main() { 
-  Logger.log('\n***** 1 YEAR *****');  
-  setAdGroupBids(LAST_YEAR(), TODAY());
-  setAdGroupBids_highCost(LAST_YEAR(), TODAY());
-  setKeywordBids(LAST_YEAR(), TODAY());
-  setKeywordBids_highCost(LAST_YEAR(), TODAY());
+  initLabels();
   
-  Logger.log('\n***** 30 DAYS *****');  
-  setAdGroupBids("LAST_30_DAYS");
-  setAdGroupBids_highCost("LAST_30_DAYS");
-  setKeywordBids("LAST_30_DAYS");
-  setKeywordBids_highCost("LAST_30_DAYS");
-
-  Logger.log('\n***** 14 DAYS *****');  
-  setAdGroupBids("LAST_14_DAYS");
-  setAdGroupBids_highCost("LAST_14_DAYS");
-  setKeywordBids("LAST_14_DAYS");  
-  setKeywordBids_highCost("LAST_14_DAYS");
-
   Logger.log('\n***** 7 DAYS *****');
-  setAdGroupBids("LAST_7_DAYS");
-  setAdGroupBids_highCost("LAST_7_DAYS");
-  setKeywordBids("LAST_7_DAYS");
-  setKeywordBids_highCost("LAST_7_DAYS");
+  setAdGroupsToMax("LAST_7_DAYS");
+  setKeywordsToMax("LAST_7_DAYS");
+  decreaseHighCostAdGroups("LAST_7_DAYS");
+  decreaseHighCostKeywords("LAST_7_DAYS");
+  
+  Logger.log('\n***** 14 DAYS *****');
+  setAdGroupsToMax("LAST_14_DAYS");
+  setKeywordsToMax("LAST_14_DAYS");
+  decreaseHighCostAdGroups("LAST_14_DAYS");
+  decreaseHighCostKeywords("LAST_14_DAYS");
+
+  
+  Logger.log('\n***** 30 DAYS *****');
+  setAdGroupsToMax("LAST_30_DAYS");
+  setKeywordsToMax("LAST_30_DAYS");
+  decreaseHighCostAdGroups("LAST_30_DAYS");
+  decreaseHighCostKeywords("LAST_30_DAYS");
+
+  
+  Logger.log('\n***** 90 DAYS *****');
+  setAdGroupsToMax(LAST_90_DAYS(), TODAY());
+  setKeywordsToMax(LAST_90_DAYS(), TODAY());
+  decreaseHighCostAdGroups(LAST_90_DAYS(), TODAY());
+  decreaseHighCostKeywords(LAST_90_DAYS(), TODAY());
+
+  
+  Logger.log('\n***** 1 YEAR *****');
+  setAdGroupsToMax(LAST_YEAR(), TODAY());
+  setKeywordsToMax(LAST_YEAR(), TODAY());
+  decreaseHighCostAdGroups(LAST_YEAR(), TODAY());
+  decreaseHighCostKeywords(LAST_YEAR(), TODAY());
+
+  cleanup();
 }
 
 
+//
+// Set the Processing label
+//
+function initLabels() {
+  checkLabelExists();
 
-// ******************************************************************
-// SET ADGROUP BIDS
-// ******************************************************************
-function setAdGroupBids(dateRange, dateRangeEnd) {
-   Logger.log('\nSet Ad Group Bids, > ' + THRESHOLD_SIGNIFICANT + ' Conv : ' + dateRange);
-   var adGroupIterator = getSelector(AdWordsApp.adGroups(), dateRange, dateRangeEnd)
-      .withCondition("ConvertedClicks > " + THRESHOLD_SIGNIFICANT)
+  // Flag all AdGroups for processing
+  var adGroupIterator = getSelector(AdWordsApp.adGroups()).get();
+  while(adGroupIterator.hasNext()){
+    var adGroup = adGroupIterator.next();
+    adGroup.applyLabel(LABEL_PROCESSING);
+  }
+
+  // Flag all Keywords for processing
+  var keywordIterator = getSelector(AdWordsApp.keywords()).get();    
+  while(keywordIterator.hasNext()){
+    var keyword = keywordIterator.next();
+    keyword.applyLabel(LABEL_PROCESSING);
+  }
+}
+
+//
+// Create the processing label if it does not exist
+//
+function checkLabelExists() {
+  var labelIterator = AdWordsApp.labels()
+    .withCondition("Name = '" + LABEL_PROCESSING + "'" )
+    .get();
+
+  if( !labelIterator.hasNext()) {
+    AdWordsApp.createLabel(LABEL_PROCESSING, "AdWords Scripts label used to process bids")
+  }
+}
+
+
+//
+// Remove Processing label
+//
+function cleanup() {
+  var adGroupIterator = AdWordsApp.adGroups()
+    .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']"). get();
+
+  while(adGroupIterator.hasNext()){
+    var adGroup = adGroupIterator.next();
+    adGroup.removeLabel(LABEL_PROCESSING);
+  }
+
+  var keywordIterator = AdWordsApp.keywords()
+    .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']"). get();
+
+  while(keywordIterator.hasNext()){
+    var keyword = keywordIterator.next();
+    keyword.removeLabel(LABEL_PROCESSING);
+  }
+}
+
+
+//
+// Increase AdGroup bids to maximum supported by conversion rates
+function setAdGroupsToMax(dateRange, dateRangeEnd) {
+  Logger.log('increaseAdGroupsToMax');
+  
+  // Only process keywords that have:
+  //  - More conversions than the min threshold
+  //  - Are marked for Processing
+  //  - Have at least one click
+  //  - And who's avg position is worst than the StopLimit
+  var adGroupIterator = AdWordsApp.adGroups()
+      .forDateRange(dateRange, dateRangeEnd)
+      .withCondition("Conversions >= " + THRESHOLD_INCREASE)
+      .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
+      .withCondition("Clicks > 0")
+      .withCondition("AveragePosition > " + STOPLIMIT_POSITION)
       .get();
   
   Logger.log('Total adGroups found : ' + adGroupIterator.totalNumEntities());
@@ -60,30 +175,89 @@ function setAdGroupBids(dateRange, dateRangeEnd) {
     var adGroup = adGroupIterator.next();
     var stats = adGroup.getStatsFor(dateRange, dateRangeEnd);
     var conv_rate = stats.getConversionRate();
+    var conversions = stats.getConversions();
+    var cost = stats.getCost();
+    var CPA = cost / conversions;
     var current_cpc = adGroup.bidding().getCpc();
     var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
-    
-    var new_cpc = max_cpc;
-    if( max_cpc > current_cpc) { // Increase bids
-       new_cpc = Math.min(current_cpc + BID_INCREMENT, max_cpc);
-    } else if (max_cpc < current_cpc) { // Decrease bids
-       new_cpc = Math.max(current_cpc - BID_INCREMENT, max_cpc);
-    }
 
-    //Logger.log('AdGroup Name: ' + adGroup.getName() + ' ConvRate:' + conv_rate + ' MaxCPC:' + max_cpc);   
-    adGroup.bidding().setCpc(new_cpc);
+    if(MAX_BID_INCREASE > 0) {
+      max_cpc = roundDown(Math.min(current_cpc+MAX_BID_INCREASE, max_cpc));
+    }
+    
+    if( AGGRESSIVE_BIDDING ) {
+      if( max_cpc > current_cpc || CPA > CONVERSION_VALUE ) {
+        adGroup.bidding().setCpc(max_cpc);
+      }
+    } else {  // Blanced Bidding
+      adGroup.bidding().setCpc(max_cpc);
+    }
+     // Remove processing label even if no changes made, as the keyword
+    // is still performing well, so we don't want further back looking
+    // functions to reduce the bid
+    adGroup.removeLabel(LABEL_PROCESSING);
   } 
 }
 
-// ******************************************************************
-// SET ADGROUP BIDS FOR HIGH COST ADWORDS
-// ******************************************************************
-function setAdGroupBids_highCost(dateRange, dateRangeEnd) {
-   Logger.log('\nHigh Cost AdGroups : ' + dateRange);
-    var highCostThreshold = (CONVERSION_VALUE * .80);
 
-   var adGroupIterator = getSelector(AdWordsApp.adGroups(), dateRange, dateRangeEnd)
-     .withCondition("ConvertedClicks <= " + THRESHOLD_SIGNIFICANT)
+function setKeywordsToMax(dateRange, dateRangeEnd) {
+  Logger.log('increaseKeywordsToMax');
+  
+  var KeywordIterator = AdWordsApp.keywords()
+      .forDateRange(dateRange, dateRangeEnd)
+      .withCondition("Conversions >= " + THRESHOLD_INCREASE)
+      .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
+      .withCondition("Clicks > 0")
+      .withCondition("AveragePosition > " + STOPLIMIT_POSITION)
+      .get();
+  
+  Logger.log('Total Keywords found : ' + KeywordIterator.totalNumEntities());
+  
+  while (KeywordIterator.hasNext()) {
+    var keyword = KeywordIterator.next();
+    var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
+    var conversions = stats.getConversions();
+    var cost = stats.getCost();
+    var CPA = cost / conversions;
+    var conv_rate = stats.getConversionRate();
+    var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
+
+    // Temp variables
+    var keywordBidding = keyword.bidding();
+    var current_cpc = keywordBidding.getCpc();
+
+    if(MAX_BID_INCREASE > 0) {
+      max_cpc = roundDown(Math.min(current_cpc+MAX_BID_INCREASE, max_cpc));
+    }
+
+    if( AGGRESSIVE_BIDDING ) {
+      if( max_cpc > current_cpc || CPA > CONVERSION_VALUE ) {
+        keyword.bidding().setCpc(max_cpc);
+      }
+    } else {  // Blanced Bidding
+      keyword.bidding().setCpc(max_cpc);
+    }
+    
+    // Remove processing label even if no changes made, as the keyword
+    // is still performing well, so we don't want further back looking
+    // functions to reduce the keyword
+    keyword.removeLabel(LABEL_PROCESSING);
+  } 
+}
+
+
+
+// 
+// Reset high cost AdGroups
+// 
+function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
+   Logger.log('\nHigh Cost AdGroups : ' + dateRange);
+
+   var adGroupIterator = AdWordsApp.adGroups()
+      .forDateRange(dateRange, dateRangeEnd)
+     .withCondition("Conversions < " + THRESHOLD_INCREASE)
+     .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
+     .withCondition("Clicks > 0")
      .get();
 
   
@@ -97,33 +271,76 @@ function setAdGroupBids_highCost(dateRange, dateRangeEnd) {
     var cost = stats.getCost();
     var conv_rate = stats.getConversionRate();
 
-    if( conversions == 0 && clicks > 0) {
+    if( conversions <= 1 && clicks > 0 && cost > HIGHCOST_VALUE) {
       conversions = 1;
       conv_rate = conversions / clicks;
     }
     
     var cpa = cost / conversions;
 
-    if (cpa > highCostThreshold) {
+    if (cpa > HIGHCOST_VALUE && conv_rate > 0) {
       var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
-      
-      if( max_cpc < adGroup.bidding().getCpc()) {
-        adGroup.bidding().setCpc(max_cpc);
-      }
+      adGroup.bidding().setCpc(max_cpc);
+      adGroup.removeLabel(LABEL_PROCESSING);
     }
   } 
 }
 
 
 
+// 
+// Reset high cost keywords
+// 
+function decreaseHighCostKeywords(dateRange, dateRangeEnd) {
+  Logger.log('\nSet Keyword Bids, High Cost : ' + dateRange); 
+  
+  // We only look at 
+  var KeywordIterator = AdWordsApp.keywords()
+     .forDateRange(dateRange, dateRangeEnd)
+     .withCondition("Conversions < " + THRESHOLD_INCREASE)
+     .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
+     .withCondition("Clicks > 0")
+     .get();
+
+  
+  Logger.log('Total Keywords found : ' + KeywordIterator.totalNumEntities());
+  
+  while (KeywordIterator.hasNext()) {
+    var keyword = KeywordIterator.next();
+    var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
+    var conversions = stats.getConversions();
+    var clicks = stats.getClicks();
+    var cost = stats.getCost();
+    var conv_rate = stats.getConversionRate();
+
+
+    if( conversions < 1 && clicks > 0 && cost > HIGHCOST_VALUE) {
+      conversions = 1;
+      conv_rate = conversions / clicks;
+    }
+    
+    var cpa = cost / conversions;
+
+    if (cpa > HIGHCOST_VALUE && conv_rate > 0) {
+      var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
+      keyword.bidding().setCpc(max_cpc);
+      keyword.removeLabel(LABEL_PROCESSING);
+    }
+  } 
+}
+
+// ---------
+
 // ******************************************************************
-// SET KEYWORD BIDS
+// TODO: When do we set Keywords bids to Adgroup bids
 // ******************************************************************
 function setKeywordBids(dateRange, dateRangeEnd) {
   Logger.log('\nSet Keyword Bids : ' + dateRange);
   
-  var KeywordIterator = getSelector(AdWordsApp.keywords(), dateRange, dateRangeEnd)
-      .withCondition("ConvertedClicks > " + THRESHOLD_SIGNIFICANT)
+  var KeywordIterator = getSelector(AdWordsApp.keywords())
+      .forDateRange(dateRange, dateRangeEnd)
+      .withCondition("Conversions > " + THRESHOLD_INCREASE)
+      .withCondition("Clicks > 0")
       .get();
   
   Logger.log('Total Keywords found : ' + KeywordIterator.totalNumEntities());
@@ -145,9 +362,9 @@ function setKeywordBids(dateRange, dateRangeEnd) {
     
     var new_cpc = max_cpc;
     if( max_cpc > current_cpc) { // Increase bids
-       new_cpc = Math.min(current_cpc + BID_INCREMENT, max_cpc);
+       new_cpc = Math.min(current_cpc + MAX_BID_INCREASE, max_cpc);
     } else if (max_cpc < current_cpc) { // Decrease bids
-       new_cpc = Math.max(current_cpc - BID_INCREMENT, max_cpc);
+       new_cpc = Math.max(current_cpc - MAX_BID_INCREASE, max_cpc);
     }
     
     if( new_cpc > current_cpc && stats.getAveragePosition() < STOPLIMIT_POSITION ) {
@@ -163,80 +380,16 @@ function setKeywordBids(dateRange, dateRangeEnd) {
 }
 
 
-// ******************************************************************
-// SET KEYWORD BIDS, HIGH COST
-// ******************************************************************
-function setKeywordBids_highCost(dateRange, dateRangeEnd) {
-  Logger.log('\nSet Keyword Bids, High Cost : ' + dateRange); 
-  
-  var KeywordIterator = getSelector(AdWordsApp.keywords(), dateRange, dateRangeEnd)
-     .withCondition("ConvertedClicks <= " + THRESHOLD_SIGNIFICANT)
-     .get();
-  
-  Logger.log('Total Keywords found : ' + KeywordIterator.totalNumEntities());
-  
-  var highCostThreshold = (CONVERSION_VALUE * .80);  
-  
-  while (KeywordIterator.hasNext()) {
-    var keyword = KeywordIterator.next();
-    var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
-    var conversions = stats.getConversions();
-    var clicks = stats.getClicks();
-    var cost = stats.getCost();
-    var conv_rate = stats.getConversionRate();
-    var cpc_firstpage = keyword.getFirstPageCpc();
-    var cpc_toppage = keyword.getTopOfPageCpc();
-    var cpc_now = keyword.bidding().getCpc();
-    var cpc_max = roundDown(conv_rate * CONVERSION_VALUE);  
-    var cpa = CONVERSION_VALUE;
-
-    
-    if( conversions == 0 && clicks > 0) {
-      conv_rate = 1 / clicks;
-      cpa = cost;
-      cpc_max = roundDown(conv_rate * CONVERSION_VALUE);  
-    } else {
-      cpa = cost / conversions;
-    }  
-    
-    // If CPA is greater than max cost, reduce bid    
-    if (cpa > highCostThreshold) {
-      if( cpc_max < cpc_now) {
-        keyword.bidding().setCpc(cpc_max);
-      }
-    } 
-    
-    // If current CPC is below top of page, increase to top of page if possible
-    /*else if( cpc_now < cpc_toppage && cpc_toppage < cpc_max ) {
-      if( conversions >= 1 ) {
-        keyword.bidding().setCpc(cpc_toppage);
-        Logger.log('------ ' + keyword.getText() + ' increased to top of page;');
-      }
-    }*/
-    
-    // If current CPC is below first page, increase to first page if possible
-    /*else if( cpc_now < cpc_firstpage && cpc_firstpage < cpc_max ) {
-      if( conversions >= 1 ) {
-        keyword.bidding().setCpc(cpc_firstpage);
-        Logger.log('------ ' + keyword.getText() + ' increased to first of page;');
-      }
-    }*/
-  } 
-}
 
 
-
-
-//**************************************************
-// Return Keyword or AdGroup Selector
-//**************************************************
-function getSelector(selector, dateRange, dateRangeEnd) {
+//
+// Return Keyword or AdGroup Selector, filtered by Campaign filters
+//
+function getSelector(selector) {
  var aSelector = selector
-      .forDateRange(dateRange, dateRangeEnd)
       .withCondition("Status = ENABLED")
       .withCondition("CampaignStatus = ENABLED")
-      .withCondition("AdGroupStatus = ENABLED")
-      .withCondition("Clicks > 0");
+      .withCondition("AdGroupStatus = ENABLED");
   
   if( TAG_IGNORE.length > 0 ) {
     aSelector = aSelector.withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
@@ -253,28 +406,33 @@ function getSelector(selector, dateRange, dateRangeEnd) {
   return aSelector;
 }
 
-
+//
 // Round down bids to the closest quarter dollar.
+//
 function roundDown(value) {
-  var suffix = value % 1;
-  var prefix = value - suffix;
-  
-  var newSuffix = suffix;
+  var newBid = value;
 
-  if( suffix < 0.25 ) {
-    if( prefix > 0 ) newSuffix = 0.0;
-  } else if( suffix < 0.50 ) {
-    newSuffix = 0.25 ;
-  } else if( suffix < 0.75) {
-    newSuffix = 0.50;
-  } else {
-    newSuffix = 0.75;
+  if( ROUNDDOWN_BIDS ) {
+    var suffix = value % 1;
+    var prefix = value - suffix;
+    
+    var newSuffix = suffix;
+
+    if( suffix < 0.25 ) {
+      if( prefix > 0 ) newSuffix = 0.0;
+    } else if( suffix < 0.50 ) {
+      newSuffix = 0.25 ;
+    } else if( suffix < 0.75) {
+      newSuffix = 0.50;
+    } else {
+      newSuffix = 0.75;
+    }
+    
+    var newBid = prefix + newSuffix;
+    
+    //Logger.log('bid: ' + value + '; new bid: ' + newBid);
   }
-  
-  var newBid = prefix + newSuffix;
-  
-  //Logger.log('bid: ' + value + '; new bid: ' + newBid);
-  
+
   return newBid;
 }
 
@@ -299,5 +457,16 @@ function LAST_YEAR() {
   var today = TODAY();
   
   today.year = today.year-1;
+  return today;
+}
+
+//
+// Date range helper functions
+// Returns date 90 days ago
+//
+function LAST_90_DAYS() {
+  var today = TODAY();
+  
+  today.month = today.month-3;
   return today;
 }
