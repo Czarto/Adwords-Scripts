@@ -1,4 +1,30 @@
-// Version: Iota
+// Version: Jungle
+
+/***********
+
+MIT License
+
+Copyright (c) 2016-2017 Alex Czartoryski
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+**********/
 
 var BID_INCREMENT = 0.05;
 var DEBUG = false;
@@ -9,12 +35,14 @@ var LOCATION_IGNORE_COUNTRY = true; // Ignore location bid adjustments for Count
 var LOCATION_IGNORE_STATE = false;  // Ignore location bid adjustments for States or Provinces
 
 var THRESHOLD_INCREASE = 10;    // Set this to 1 to increase bids more aggressively
-var THRESHOLD_DECREASE = 1;    // Set this to 1 to decrease bids more aggressively
+var THRESHOLD_DECREASE = 5;    // Set this to 1 to decrease bids more aggressively
 
-var HIGH_COST = 100;    // How much is too much
+var HIGH_COST = 40;    // How much is too much
 
 var STOPLIMIT_POSITION = 1.3; // Do not increase bids at this position or better
 var STOPLIMIT_ADJUSTMENT = 1.50; // Do not increase adjustments above +50%
+
+
 
 function main() {
     setLocationBids(LAST_YEAR(), TODAY());
@@ -213,6 +241,7 @@ function setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRange
 
     while (campaignIterator.hasNext()) {
         var campaign = campaignIterator.next();
+        var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getConversionRate();
 
         Logger.log(' ');
         Logger.log('CAMPAIGN: ' + campaign.getName());
@@ -223,17 +252,24 @@ function setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRange
 
         if (desktopTargetIterator.hasNext()) {
             var desktopTarget = desktopTargetIterator.next();
-            var desktopStats = desktopTarget.getStatsFor(dateRange, dateRangeEnd);
-            var desktopConversionRate = desktopStats.getConversionRate();
+            var stats = desktopTarget.getStatsFor(dateRange, dateRangeEnd);
+            var currentBidModifier = desktopTarget.getBidModifier();
 
+            if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
+                    increaseBid(desktopTarget);
+                } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
+                    decreaseBid(desktopTarget);
+                }
+        }
+      
             if (tabletTargetIterator.hasNext()) {
                 var tabletTarget = tabletTargetIterator.next();
                 var stats = tabletTarget.getStatsFor(dateRange, dateRangeEnd);
                 var currentBidModifier = tabletTarget.getBidModifier();
 
-                if (isBidIncreaseNeeded(stats, currentBidModifier, desktopConversionRate)) {
+                if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
                     increaseBid(tabletTarget);
-                } else if (isBidDecreaseNeeded(stats, currentBidModifier, desktopConversionRate)) {
+                } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
                     decreaseBid(tabletTarget);
                 }
 
@@ -245,14 +281,14 @@ function setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRange
                 var currentBidModifier = mobileTarget.getBidModifier();
 
 
-                if (isBidIncreaseNeeded(stats, currentBidModifier, desktopConversionRate)) {
+                if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
                     increaseBid(mobileTarget);
-                } else if (isBidDecreaseNeeded(stats, currentBidModifier, desktopConversionRate)) {
+                } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
                     decreaseBid(mobileTarget);
                 }
 
             }
-        }
+        
     }
 }
 
