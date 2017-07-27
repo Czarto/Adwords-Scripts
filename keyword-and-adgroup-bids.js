@@ -1,4 +1,4 @@
-// Version: V2 Alpha
+// Version: V2 Beta
 
 /***********
 
@@ -271,7 +271,7 @@ function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
     var cost = stats.getCost();
     var conv_rate = stats.getConversionRate();
 
-    if( conversions <= 1 && clicks > 0 && cost > HIGHCOST_VALUE) {
+    if( conversions <= 1 && clicks > 0 ) {
       conversions = 1;
       conv_rate = conversions / clicks;
     }
@@ -314,7 +314,7 @@ function decreaseHighCostKeywords(dateRange, dateRangeEnd) {
     var conv_rate = stats.getConversionRate();
 
 
-    if( conversions < 1 && clicks > 0 && cost > HIGHCOST_VALUE) {
+    if( conversions < 1 && clicks > 0 ) {
       conversions = 1;
       conv_rate = conversions / clicks;
     }
