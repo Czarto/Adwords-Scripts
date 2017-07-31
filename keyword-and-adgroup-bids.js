@@ -1,4 +1,4 @@
-// Version: V2 Beta
+// Version: V2 Charlie
 
 /***********
 
@@ -468,5 +468,7 @@ function LAST_90_DAYS() {
   var today = TODAY();
   
   today.month = today.month-3;
+  today.day = Math.min(today.day, 28);
   return today;
 }
+
