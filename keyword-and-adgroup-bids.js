@@ -61,36 +61,36 @@ function main() {
   
   Logger.log('\n***** 7 DAYS *****');
   setAdGroupsToMax("LAST_7_DAYS");
-  setKeywordsToMax("LAST_7_DAYS");
-  decreaseHighCostAdGroups("LAST_7_DAYS");
-  decreaseHighCostKeywords("LAST_7_DAYS");
+  //setKeywordsToMax("LAST_7_DAYS");
+  //decreaseHighCostAdGroups("LAST_7_DAYS");
+  //decreaseHighCostKeywords("LAST_7_DAYS");
   
   Logger.log('\n***** 14 DAYS *****');
   setAdGroupsToMax("LAST_14_DAYS");
-  setKeywordsToMax("LAST_14_DAYS");
-  decreaseHighCostAdGroups("LAST_14_DAYS");
-  decreaseHighCostKeywords("LAST_14_DAYS");
+  //setKeywordsToMax("LAST_14_DAYS");
+  //decreaseHighCostAdGroups("LAST_14_DAYS");
+  //decreaseHighCostKeywords("LAST_14_DAYS");
 
   
   Logger.log('\n***** 30 DAYS *****');
   setAdGroupsToMax("LAST_30_DAYS");
-  setKeywordsToMax("LAST_30_DAYS");
-  decreaseHighCostAdGroups("LAST_30_DAYS");
-  decreaseHighCostKeywords("LAST_30_DAYS");
+  //setKeywordsToMax("LAST_30_DAYS");
+  //decreaseHighCostAdGroups("LAST_30_DAYS");
+  //decreaseHighCostKeywords("LAST_30_DAYS");
 
   
   Logger.log('\n***** 90 DAYS *****');
   setAdGroupsToMax(LAST_90_DAYS(), TODAY());
-  setKeywordsToMax(LAST_90_DAYS(), TODAY());
-  decreaseHighCostAdGroups(LAST_90_DAYS(), TODAY());
-  decreaseHighCostKeywords(LAST_90_DAYS(), TODAY());
+  //setKeywordsToMax(LAST_90_DAYS(), TODAY());
+  //decreaseHighCostAdGroups(LAST_90_DAYS(), TODAY());
+  //decreaseHighCostKeywords(LAST_90_DAYS(), TODAY());
 
   
   Logger.log('\n***** 1 YEAR *****');
   setAdGroupsToMax(LAST_YEAR(), TODAY());
-  setKeywordsToMax(LAST_YEAR(), TODAY());
-  decreaseHighCostAdGroups(LAST_YEAR(), TODAY());
-  decreaseHighCostKeywords(LAST_YEAR(), TODAY());
+  //setKeywordsToMax(LAST_YEAR(), TODAY());
+  //decreaseHighCostAdGroups(LAST_YEAR(), TODAY());
+  //decreaseHighCostKeywords(LAST_YEAR(), TODAY());
 
   cleanup();
 }
@@ -104,14 +104,21 @@ function initLabels() {
 
   // Flag all AdGroups for processing
   var adGroupIterator = getSelector(AdWordsApp.adGroups()).get();
-  while(adGroupIterator.hasNext()){
+  while (adGroupIterator.hasNext()) {
+    var adGroup = adGroupIterator.next();
+    adGroup.applyLabel(LABEL_PROCESSING);
+  }
+
+  // Flag all Shopping AdGroups for processing
+  adGroupIterator = getSelector(AdWordsApp.shoppingAdGroups()).get();
+  while (adGroupIterator.hasNext()) {
     var adGroup = adGroupIterator.next();
     adGroup.applyLabel(LABEL_PROCESSING);
   }
 
   // Flag all Keywords for processing
-  var keywordIterator = getSelector(AdWordsApp.keywords()).get();    
-  while(keywordIterator.hasNext()){
+  var keywordIterator = getSelector(AdWordsApp.keywords()).get();
+  while (keywordIterator.hasNext()) {
     var keyword = keywordIterator.next();
     keyword.applyLabel(LABEL_PROCESSING);
   }
@@ -135,18 +142,30 @@ function checkLabelExists() {
 // Remove Processing label
 //
 function cleanup() {
-  var adGroupIterator = AdWordsApp.adGroups()
-    .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']"). get();
 
-  while(adGroupIterator.hasNext()){
+  // Cleanup AdGoups
+  var adGroupIterator = AdWordsApp.adGroups()
+    .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
+
+  while (adGroupIterator.hasNext()) {
     var adGroup = adGroupIterator.next();
     adGroup.removeLabel(LABEL_PROCESSING);
   }
 
-  var keywordIterator = AdWordsApp.keywords()
-    .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']"). get();
+  // Cleanup Shopping AdGoups
+  adGroupIterator = AdWordsApp.shoppingAdGroups()
+    .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
 
-  while(keywordIterator.hasNext()){
+  while (adGroupIterator.hasNext()) {
+    var adGroup = adGroupIterator.next();
+    adGroup.removeLabel(LABEL_PROCESSING);
+  }
+
+  // Cleanup keywords
+  var keywordIterator = AdWordsApp.keywords()
+    .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
+
+  while (keywordIterator.hasNext()) {
     var keyword = keywordIterator.next();
     keyword.removeLabel(LABEL_PROCESSING);
   }
@@ -154,62 +173,74 @@ function cleanup() {
 
 
 //
-// Increase AdGroup bids to maximum supported by conversion rates
+// Increase AdGroup bids to maximum supported by conversion value
+//
 function setAdGroupsToMax(dateRange, dateRangeEnd) {
   Logger.log('increaseAdGroupsToMax');
-  
-  // Only process adGroups that have:
-  //  - More conversions than MIN_CONVERSIONS
-  //  - Are marked for Processing
-  //  - Have at least one click
-  //  - And who's avg position is worst than the StopLimit
-  var adGroupIterator = AdWordsApp.adGroups()
+
+  var adGroupTypes = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups()];
+
+  for (i = 0; i < adGroupTypes.length; i++) {
+    // Only process adGroups that have:
+    //  - More conversions than MIN_CONVERSIONS
+    //  - Are marked for Processing
+    //  - Have at least one click
+    //  - And who's avg position is worst than the StopLimit
+    var adGroupIterator = adGroupTypes[i]
       .forDateRange(dateRange, dateRangeEnd)
       .withCondition("Conversions >= " + MIN_CONVERSIONS)
       .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
       .withCondition("Clicks > 0")
-      .withCondition("AveragePosition > " + MAX_POSITION)
-      .get();
-  
-  Logger.log('Total adGroups found : ' + adGroupIterator.totalNumEntities());
-  
-  while (adGroupIterator.hasNext()) {
-    var adGroup = adGroupIterator.next();
-    var stats = adGroup.getStatsFor(dateRange, dateRangeEnd);
-    var cost = stats.getCost();
-    var clicks = stats.getClicks();
-    var current_cpc = adGroup.bidding().getCpc();
-    var conversionValue = getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd);
-    var costOfSales = cost / conversionValue;
-    var max_cpc = roundDown(conversionValue / clicks) * PROFIT_MARGIN;
+      if( adGroupTypes[i].getEntityType == "AdGroup") {
+        adGroupIterator = adGroupIterator.withCondition("AveragePosition > " + MAX_POSITION)
+      }
+      adGroupIterator = adGroupIterator.get();
 
-    if(MAX_BID_INCREASE > 0) {
-      max_cpc = roundDown(Math.min(current_cpc+MAX_BID_INCREASE, max_cpc));
-    }
-    
-    if( AGGRESSIVE_BIDDING ) {
-      // Don't lower the bid unless cost of sales is too high
-      if( max_cpc > current_cpc || costOfSales > PROFIT_MARGIN ) {
+    Logger.log('Total adGroups found : ' + adGroupIterator.totalNumEntities());
+
+    while (adGroupIterator.hasNext()) {
+      var adGroup = adGroupIterator.next();
+      var stats = adGroup.getStatsFor(dateRange, dateRangeEnd);
+      var cost = stats.getCost();
+      var clicks = stats.getClicks();
+      var current_cpc = adGroup.bidding().getCpc();
+      var conversionValue = getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd);
+      var costOfSales = cost / conversionValue;
+      var max_cpc = roundDown(conversionValue / clicks) * PROFIT_MARGIN;
+
+      if (MAX_BID_INCREASE > 0) {
+        max_cpc = roundDown(Math.min(current_cpc + MAX_BID_INCREASE, max_cpc));
+      }
+
+      if (AGGRESSIVE_BIDDING) {
+        // Don't lower the bid unless cost of sales is too high
+        if (max_cpc > current_cpc || costOfSales > PROFIT_MARGIN) {
+          adGroup.bidding().setCpc(max_cpc);
+        }
+      } else {  // Balanced Bidding
         adGroup.bidding().setCpc(max_cpc);
       }
-    } else {  // Balanced Bidding
-      adGroup.bidding().setCpc(max_cpc);
-    }
 
-    // Remove processing label even if no changes made, as the keyword
-    // is still performing well, so we don't want further back looking
-    // functions to reduce the bid
-    adGroup.removeLabel(LABEL_PROCESSING);
-  } 
+      // Remove processing label even if no changes made, as the keyword
+      // is still performing well, so we don't want further back looking
+      // functions to reduce the bid
+      adGroup.removeLabel(LABEL_PROCESSING);
+    }
+  }
 }
 
 //
 // Get the total Conversion Value for this adgroup and date range
 //
 function getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd) {
+  var reportName = "ADGROUP_PERFORMANCE_REPORT";
+  if( adGroup.getEntityType == "ShoppingAdGroup") {
+    reportName = "SHOPPING_PERFORMANCE_REPORT";
+  }
+
   var report = AdWordsApp.report(
       "SELECT ConversionValue, Conversions " +
-      "FROM ADGROUP_PERFORMANCE_REPORT " +
+      "FROM " + reportName + " " +
       "WHERE AdGroupId = " + adGroup.getId() + " " +
       "DURING " + dateRangeToString(dateRange, dateRangeEnd));
 
@@ -229,7 +260,6 @@ function getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd) {
         return 0
       }
 }
-
 
 function setKeywordsToMax(dateRange, dateRangeEnd) {
   Logger.log('increaseKeywordsToMax');
