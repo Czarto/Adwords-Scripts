@@ -29,7 +29,7 @@ SOFTWARE.
 var CONVERSION_VALUE = 40.0;
 var HIGHCOST_VALUE = CONVERSION_VALUE; // How much is too much
 var USE_ACTUAL_CONVERSION_VALUE = true;
-var PROFIT_MARGIN = 0.2; // Percentage. The maximum percentage of conversion value you are willing to spend
+var PROFIT_MARGIN = 0.2; // Percentage. The maximum percentage of sales you are willing to spend
 
 var MAX_BID_INCREASE = 1.0;  // In dollars. Set to 0 for no limit
 var MIN_CONVERSIONS = 10;    // Minimum number of conversions to make a bid increase. Set this to 1 to increase bids most aggressively
