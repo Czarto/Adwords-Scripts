@@ -102,25 +102,14 @@ function main() {
 function initLabels() {
   checkLabelExists();
 
-  // Flag all AdGroups for processing
-  var adGroupIterator = getSelector(AdWordsApp.adGroups()).get();
-  while (adGroupIterator.hasNext()) {
-    var adGroup = adGroupIterator.next();
-    adGroup.applyLabel(LABEL_PROCESSING);
-  }
+  var itemsToLabel = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups(), AdWordsApp.keywords()];
 
-  // Flag all Shopping AdGroups for processing
-  adGroupIterator = getSelector(AdWordsApp.shoppingAdGroups()).get();
-  while (adGroupIterator.hasNext()) {
-    var adGroup = adGroupIterator.next();
-    adGroup.applyLabel(LABEL_PROCESSING);
-  }
+  for (i = 0; i < itemsToLabel.length; i++) {
+    var iterator = getSelector(itemsToLabel[i]).get();
 
-  // Flag all Keywords for processing
-  var keywordIterator = getSelector(AdWordsApp.keywords()).get();
-  while (keywordIterator.hasNext()) {
-    var keyword = keywordIterator.next();
-    keyword.applyLabel(LABEL_PROCESSING);
+    while (iterator.hasNext()) {
+      iterator.next().applyLabel(LABEL_PROCESSING);
+    }
   }
 }
 
@@ -142,35 +131,17 @@ function checkLabelExists() {
 // Remove Processing label
 //
 function cleanup() {
+  var cleanupList = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups(), AdWordsApp.keywords()];
 
-  // Cleanup AdGoups
-  var adGroupIterator = AdWordsApp.adGroups()
-    .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
+  for (i = 0; i < cleanupList.length; i++) {
+    // Cleanup AdGoups
+    var iterator = cleanupList[i].withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
 
-  while (adGroupIterator.hasNext()) {
-    var adGroup = adGroupIterator.next();
-    adGroup.removeLabel(LABEL_PROCESSING);
-  }
-
-  // Cleanup Shopping AdGoups
-  adGroupIterator = AdWordsApp.shoppingAdGroups()
-    .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
-
-  while (adGroupIterator.hasNext()) {
-    var adGroup = adGroupIterator.next();
-    adGroup.removeLabel(LABEL_PROCESSING);
-  }
-
-  // Cleanup keywords
-  var keywordIterator = AdWordsApp.keywords()
-    .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
-
-  while (keywordIterator.hasNext()) {
-    var keyword = keywordIterator.next();
-    keyword.removeLabel(LABEL_PROCESSING);
+    while (iterator.hasNext()) {
+      iterator.next().removeLabel(LABEL_PROCESSING);
+    }
   }
 }
-
 
 //
 // Increase AdGroup bids to maximum supported by conversion value
