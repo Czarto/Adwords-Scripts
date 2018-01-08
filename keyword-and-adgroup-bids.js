@@ -468,7 +468,7 @@ function roundDown(value) {
   return newBid;
 }
 
-//
+///
 // Date range helper functions
 // Returns today's date.
 //
@@ -481,6 +481,7 @@ function TODAY() {
   return {year: yyyy, month: mm, day: dd};
 }
 
+
 //
 // Date range helper functions
 // Returns date 1 year ago
@@ -492,16 +493,20 @@ function LAST_YEAR() {
   return today;
 }
 
+
 //
 // Date range helper functions
 // Returns date 90 days ago
 //
 function LAST_90_DAYS() {
-  var today = TODAY();
+  var date = new Date(); 
+  date.setDate(date.getDate() - 90);
   
-  today.month = today.month-3;
-  today.day = Math.min(today.day, 28);
-  return today;
+  var dd = date.getDate();
+  var mm = date.getMonth()+1; //January is 0!
+  var yyyy = date.getFullYear();
+
+  return {year: yyyy, month: mm, day: dd};
 }
 
 //
