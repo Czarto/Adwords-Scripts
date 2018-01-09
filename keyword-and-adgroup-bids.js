@@ -161,7 +161,7 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
       .forDateRange(dateRange, dateRangeEnd)
       .withCondition("Conversions >= " + MIN_CONVERSIONS)
       .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
-      .withCondition("Clicks > 0")
+      .withCondition("Clicks > 0");
       if( adGroupTypes[i].getEntityType == "AdGroup") {
         adGroupIterator = adGroupIterator.withCondition("AveragePosition > " + MAX_POSITION)
       }
@@ -283,39 +283,48 @@ function setKeywordsToMax(dateRange, dateRangeEnd) {
 // Reset high cost AdGroups
 // 
 function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
-   Logger.log('\nHigh Cost AdGroups : ' + dateRange);
 
-   var adGroupIterator = AdWordsApp.adGroups()
+  Logger.log('\nHigh Cost AdGroups : ' + dateRangeToString(dateRange, dateRangeEnd));
+
+  var adGroupTypes = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups()];
+
+  for (i = 0; i < adGroupTypes.length; i++) {
+    // Only process adGroups that have:
+    //  - Less conversions than MIN_CONVERSIONS
+    //  - Are marked for Processing
+    //  - Have at least one click
+    //  - And who have a high cost
+    var adGroupIterator = adGroupTypes[i]
       .forDateRange(dateRange, dateRangeEnd)
-     .withCondition("Conversions < " + MIN_CONVERSIONS)
-     .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
-     .withCondition("Clicks > 0")
-     .get();
+      .withCondition("Conversions < " + MIN_CONVERSIONS)
+      .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
+      .withCondition("Clicks > 0")
+      .withCondition("Cost > " + HIGHCOST_VALUE)
+      .get();
 
-  
-  Logger.log('Total adGroups found : ' + adGroupIterator.totalNumEntities());
-  
-  while (adGroupIterator.hasNext()) {
-    var adGroup = adGroupIterator.next();
-    var stats = adGroup.getStatsFor(dateRange, dateRangeEnd);
-    var conversions = stats.getConversions();
-    var clicks = stats.getClicks();
-    var cost = stats.getCost();
-    var conv_rate = stats.getConversionRate();
+    Logger.log('Total adGroups found : ' + adGroupIterator.totalNumEntities());
 
-    if( conversions <= 1 && clicks > 0 ) {
-      conversions = 1;
-      conv_rate = conversions / clicks;
+    while (adGroupIterator.hasNext()) {
+      var adGroup = adGroupIterator.next();
+      var stats = adGroup.getStatsFor(dateRange, dateRangeEnd);
+      var cost = stats.getCost();
+      var clicks = stats.getClicks();
+      var current_cpc = adGroup.bidding().getCpc();
+      // Add default value of a conversion, to calculate new max CPC optimistically that we
+      // might get an average conversion on the next click
+      var conversionValue = getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd);
+      conversionValue = conversionValue + CONVERSION_VALUE;
+
+      var max_cpc = roundDown(conversionValue / clicks) * PROFIT_MARGIN;
+
+      if( max_cpc < current_cpc) {
+        adGroup.bidding().setCpc(max_cpc);
+        // Do not remove processing label. Give a chance for more data
+        // to increase the bid
+        //adGroup.removeLabel(LABEL_PROCESSING);
+      }
     }
-    
-    var cpa = cost / conversions;
-
-    if (cpa > HIGHCOST_VALUE && conv_rate > 0) {
-      var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
-      adGroup.bidding().setCpc(max_cpc);
-      adGroup.removeLabel(LABEL_PROCESSING);
-    }
-  } 
+  }
 }
 
 
