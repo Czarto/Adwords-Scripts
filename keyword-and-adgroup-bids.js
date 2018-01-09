@@ -62,7 +62,7 @@ function main() {
   Logger.log('\n***** 7 DAYS *****');
   setAdGroupsToMax("LAST_7_DAYS");
   //setKeywordsToMax("LAST_7_DAYS");
-  //decreaseHighCostAdGroups("LAST_7_DAYS");
+  decreaseHighCostAdGroups("LAST_7_DAYS");
   //decreaseHighCostKeywords("LAST_7_DAYS");
   
   Logger.log('\n***** 14 DAYS *****');
@@ -75,21 +75,21 @@ function main() {
   Logger.log('\n***** 30 DAYS *****');
   setAdGroupsToMax("LAST_30_DAYS");
   //setKeywordsToMax("LAST_30_DAYS");
-  //decreaseHighCostAdGroups("LAST_30_DAYS");
+  decreaseHighCostAdGroups("LAST_30_DAYS");
   //decreaseHighCostKeywords("LAST_30_DAYS");
 
   
   Logger.log('\n***** 90 DAYS *****');
   setAdGroupsToMax(LAST_90_DAYS(), TODAY());
   //setKeywordsToMax(LAST_90_DAYS(), TODAY());
-  //decreaseHighCostAdGroups(LAST_90_DAYS(), TODAY());
+  decreaseHighCostAdGroups(LAST_90_DAYS(), TODAY());
   //decreaseHighCostKeywords(LAST_90_DAYS(), TODAY());
 
   
   Logger.log('\n***** 1 YEAR *****');
   setAdGroupsToMax(LAST_YEAR(), TODAY());
   //setKeywordsToMax(LAST_YEAR(), TODAY());
-  //decreaseHighCostAdGroups(LAST_YEAR(), TODAY());
+  decreaseHighCostAdGroups(LAST_YEAR(), TODAY());
   //decreaseHighCostKeywords(LAST_YEAR(), TODAY());
 
   cleanup();
@@ -187,9 +187,19 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
         // Don't lower the bid unless cost of sales is too high
         if (max_cpc > current_cpc || costOfSales > PROFIT_MARGIN) {
           adGroup.bidding().setCpc(max_cpc);
+
+          // For Shopping, we also need to set the Product Group bid
+          if( adGroup.getEntityType() == "ShoppingAdGroup") {
+            adGroup.productGroups().get().next().setMaxCpc(max_cpc);
+          }
         }
       } else {  // Balanced Bidding
         adGroup.bidding().setCpc(max_cpc);
+
+        // For Shopping, we also need to set the Product Group bid
+        if( adGroup.getEntityType() == "ShoppingAdGroup") {
+          adGroup.productGroups().get().next().setMaxCpc(max_cpc);
+        }
       }
 
       // Remove processing label even if no changes made, as the keyword
@@ -199,6 +209,7 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
     }
   }
 }
+
 
 //
 // Get the total Conversion Value for this adgroup and date range
@@ -319,6 +330,11 @@ function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
 
       if( max_cpc < current_cpc) {
         adGroup.bidding().setCpc(max_cpc);
+
+        // For Shopping, we also need to set the Product Group bid
+        if( adGroup.getEntityType() == "ShoppingAdGroup") {
+          adGroup.productGroups().get().next().setMaxCpc(max_cpc);
+        }
         // Do not remove processing label. Give a chance for more data
         // to increase the bid
         //adGroup.removeLabel(LABEL_PROCESSING);
