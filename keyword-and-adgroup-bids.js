@@ -1,4 +1,4 @@
-// Version: V2 Delta
+// Version: V2 Echo
 
 /***********
 
@@ -26,7 +26,7 @@ SOFTWARE.
 
 **********/
 
-var CONVERSION_VALUE = 40.0;
+var CONVERSION_VALUE = 40.0; // Your profit margin per sale
 var HIGHCOST_VALUE = CONVERSION_VALUE; // How much is too much
 var USE_ACTUAL_CONVERSION_VALUE = true;
 var PROFIT_MARGIN = 0.2; // Percentage. The maximum percentage of sales you are willing to spend
@@ -49,6 +49,7 @@ var CAMPAIGN_INCLUDE = ''; // Only include Adgroups and keywords in Campaigns wi
 var CAMPAIGN_EXCLUDE = ''; // Exclude Adgroups and keywords in Campaigns with this text string in the name
 
 
+// TODO: Review CONVERSION_VALUE vs HIGHCOST_VALUE vs PROFIT_MARGIN vs SALES_VALUE
 // TODO: Set keyword bids to adgroup bids when they are within range
 // TODO: Set keywords bids to adgroup bids when they are "low volume"
 // TODO: Set keywords bids to adgroup bids if they are below threshold, but conversion rate warrents it
@@ -68,7 +69,7 @@ function main() {
   Logger.log('\n***** 14 DAYS *****');
   setAdGroupsToMax("LAST_14_DAYS");
   //setKeywordsToMax("LAST_14_DAYS");
-  //decreaseHighCostAdGroups("LAST_14_DAYS");
+  decreaseHighCostAdGroups("LAST_14_DAYS");
   //decreaseHighCostKeywords("LAST_14_DAYS");
 
   
@@ -124,6 +125,14 @@ function checkLabelExists() {
   if( !labelIterator.hasNext()) {
     AdWordsApp.createLabel(LABEL_PROCESSING, "AdWords Scripts label used to process bids")
   }
+
+  var labelIterator = AdWordsApp.labels()
+  .withCondition("Name = '" + TAG_IGNORE + "'" )
+  .get();
+
+  if( !labelIterator.hasNext()) {
+    AdWordsApp.createLabel(TAG_IGNORE, "AdWords Scripts label used to ignore script processing")
+  } 
 }
 
 
