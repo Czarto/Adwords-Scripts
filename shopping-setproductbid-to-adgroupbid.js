@@ -1,4 +1,4 @@
-// Version: 1.0
+// Version: 1.0.1
 
 /***********
 
@@ -27,9 +27,6 @@ SOFTWARE.
 
 **********/
 
-// LABELS
-var TAG_IGNORE = 'Script Ignore';
-
 // CAMPAIGN FILTERS
 var CAMPAIGN_INCLUDE = ''; // Only include Adgroups and keywords in Campaigns with this text string in the name
 var CAMPAIGN_EXCLUDE = ''; // Exclude Adgroups and keywords in Campaigns with this text string in the name
@@ -47,10 +44,6 @@ function setProductGroupBidsToAdGroupBids() {
       .withCondition("Status = ENABLED")
       .withCondition("CampaignStatus = ENABLED")
       .withCondition("AdGroupStatus = ENABLED");
-  
-    if( TAG_IGNORE.length > 0 ) {
-        adGroupIterator = adGroupIterator.withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
-    }
     
     if( CAMPAIGN_INCLUDE.length > 0 ) {
         adGroupIterator = adGroupIterator.withCondition("CampaignName CONTAINS_IGNORE_CASE '" + CAMPAIGN_INCLUDE + "'");    
