@@ -1,11 +1,11 @@
-# Adwords
-Google Adwords Bidding scripts
+# Google Ads Bidding Scripts
 
-# License
+## License
 
 MIT License
 
-Copyright (c) 2016-2017 Alex Czartoryski
+Copyright (c) 2016-2018 Alex Czartoryski
+https://business.czarto.com/
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,3 +24,17 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+# The Scripts
+
+## Automated Keyword and AdGroup Bids
+Set max CPC bids based on a sliding lookback window and based on a maximum cost of sales. Currently only sets bids at the adgroup level.
+- <a href="https://github.com/Czarto/Adwords-Scripts/blob/master/keyword-and-adgroup-bids.js">keyword-and-adgroup-bids.js</a>
+
+## Set Shopping ProductGroup bids to the AdGroup bid
+Set product group bids to the bid of the AdGroup.
+- <a href="https://github.com/Czarto/Adwords-Scripts/blob/master/shopping-setproductbid-to-adgroupbid.js">shopping-setproductbid-to-adgroupbid.js</a>
+
+## Automated Bid Adjustments for GeoLocation, Schedule, and  Device
+Set bid adjustments for GeoLocation, Schedule, and Device based on the relative conversion rates of each segment.
+- <a href="https://github.com/Czarto/Adwords-Scripts/blob/master/targeting-bid-adjustments.js">targeting-bid-adjustments.js</a>
