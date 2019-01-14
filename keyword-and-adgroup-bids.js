@@ -31,7 +31,7 @@ var HIGHCOST_VALUE = CONVERSION_VALUE; // How much is too much
 var USE_ACTUAL_CONVERSION_VALUE = true;
 var PROFIT_MARGIN = 0.2; // Percentage. The maximum percentage of sales you are willing to spend
 
-var MAX_BID_INCREASE = 1.0;  // In dollars. Set to 0 for no limit
+var MAX_BID_INCREASE = 1.0;  // Max bid increase in Dollars
 var MIN_CONVERSIONS = 10;    // Minimum number of conversions to make a bid increase. Set this to 1 to increase bids most aggressively
 
 var MAX_POSITION = 1.0;  // Do not increase bids if the keyword is already at this position or better
@@ -188,11 +188,7 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
       var conversionValue = getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd);
       var costOfSales = cost / conversionValue;
       var max_cpc = roundDown(conversionValue / clicks) * PROFIT_MARGIN;
-
-
-      if (MAX_BID_INCREASE > 0) {
-        max_cpc = roundDown(Math.min(current_cpc + MAX_BID_INCREASE, max_cpc));
-      }
+      max_cpc = roundDown(Math.min(current_cpc + MAX_BID_INCREASE, max_cpc));
 
       if (AGGRESSIVE_BIDDING) {
         // Don't lower the bid unless cost of sales is too high
@@ -269,10 +265,7 @@ function setKeywordsToMax(dateRange, dateRangeEnd) {
     // Temp variables
     var keywordBidding = keyword.bidding();
     var current_cpc = keywordBidding.getCpc();
-
-    if(MAX_BID_INCREASE > 0) {
-      max_cpc = roundDown(Math.min(current_cpc+MAX_BID_INCREASE, max_cpc));
-    }
+    max_cpc = roundDown(Math.min(current_cpc+MAX_BID_INCREASE, max_cpc));
 
     if( AGGRESSIVE_BIDDING ) {
       if( max_cpc > current_cpc || CPA > CONVERSION_VALUE ) {
