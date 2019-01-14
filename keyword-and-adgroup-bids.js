@@ -37,9 +37,7 @@ var MIN_CONVERSIONS = 10;    // Minimum number of conversions to make a bid incr
 var MAX_POSITION = 1.0;  // Do not increase bids if the keyword is already at this position or better
 var MIN_BID = 0.01; // The minimum bid to decrease to
 
-// LOGIC FLAGS
 var AGGRESSIVE_BIDDING = true;   // Don't lower bids unless the current CPA is over  HIGHCOST_VALUE or MAX_COS
-var ROUNDDOWN_BIDS = false; // Bids are rounded down to the nearest quarter dollar
 
 // LABELS
 var LABEL_PROCESSING = 'Processing';
@@ -187,8 +185,8 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
       var current_cpc = adGroup.bidding().getCpc();
       var conversionValue = getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd);
       var costOfSales = cost / conversionValue;
-      var max_cpc = roundDown(conversionValue / clicks) * PROFIT_MARGIN;
-      max_cpc = roundDown(Math.min(current_cpc + MAX_BID_INCREASE, max_cpc));
+      var max_cpc = (conversionValue / clicks) * PROFIT_MARGIN;
+      max_cpc = (Math.min(current_cpc + MAX_BID_INCREASE, max_cpc));
 
       if (AGGRESSIVE_BIDDING) {
         // Don't lower the bid unless cost of sales is too high
@@ -260,12 +258,12 @@ function setKeywordsToMax(dateRange, dateRangeEnd) {
     var cost = stats.getCost();
     var CPA = cost / conversions;
     var conv_rate = stats.getConversionRate();
-    var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
+    var max_cpc = (conv_rate * CONVERSION_VALUE);
 
     // Temp variables
     var keywordBidding = keyword.bidding();
     var current_cpc = keywordBidding.getCpc();
-    max_cpc = roundDown(Math.min(current_cpc+MAX_BID_INCREASE, max_cpc));
+    max_cpc = (Math.min(current_cpc+MAX_BID_INCREASE, max_cpc));
 
     if( AGGRESSIVE_BIDDING ) {
       if( max_cpc > current_cpc || CPA > CONVERSION_VALUE ) {
@@ -320,7 +318,7 @@ function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
       var conversionValue = getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd);
       conversionValue = conversionValue + CONVERSION_VALUE;
 
-      var max_cpc = roundDown(conversionValue / clicks) * PROFIT_MARGIN;
+      var max_cpc = (conversionValue / clicks) * PROFIT_MARGIN;
 
       if( max_cpc < current_cpc) {
         adGroup.bidding().setCpc(max_cpc);
@@ -368,7 +366,7 @@ function decreaseHighCostKeywords(dateRange, dateRangeEnd) {
     var cpa = cost / conversions;
 
     if (cpa > HIGHCOST_VALUE && conv_rate > 0) {
-      var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
+      var max_cpc = (conv_rate * CONVERSION_VALUE);
       keyword.bidding().setCpc(max_cpc);
       keyword.removeLabel(LABEL_PROCESSING);
     }
@@ -395,7 +393,7 @@ function setKeywordBids(dateRange, dateRangeEnd) {
     var keyword = KeywordIterator.next();
     var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
     var conv_rate = stats.getConversionRate();
-    var max_cpc = roundDown(conv_rate * CONVERSION_VALUE);
+    var max_cpc = (conv_rate * CONVERSION_VALUE);
 
     // Temp variables
     var keywordBidding = keyword.bidding();
@@ -452,35 +450,6 @@ function getSelector(selector) {
   return aSelector;
 }
 
-//
-// Round down bids to the closest quarter dollar.
-//
-function roundDown(value) {
-  var newBid = value;
-
-  if( ROUNDDOWN_BIDS ) {
-    var suffix = value % 1;
-    var prefix = value - suffix;
-    
-    var newSuffix = suffix;
-
-    if( suffix < 0.25 ) {
-      if( prefix > 0 ) newSuffix = 0.0;
-    } else if( suffix < 0.50 ) {
-      newSuffix = 0.25 ;
-    } else if( suffix < 0.75) {
-      newSuffix = 0.50;
-    } else {
-      newSuffix = 0.75;
-    }
-    
-    var newBid = prefix + newSuffix;
-    
-    //Logger.log('bid: ' + value + '; new bid: ' + newBid);
-  }
-
-  return newBid;
-}
 
 ///
 // Date range helper functions
