@@ -29,15 +29,15 @@ SOFTWARE.
 var CONVERSION_VALUE = 40.0; // Your profit margin per sale
 var HIGHCOST_VALUE = CONVERSION_VALUE; // How much is too much
 var USE_ACTUAL_CONVERSION_VALUE = true;
-var PROFIT_MARGIN = 0.2; // Percentage. The maximum percentage of sales you are willing to spend
+var PROFIT_MARGIN = 0.4; // Percentage. The maximum percentage of sales you are willing to spend
 
-var MAX_BID_INCREASE = 1.0;  // Max bid increase in Dollars
-var MIN_CONVERSIONS = 10;    // Minimum number of conversions to make a bid increase. Set this to 1 to increase bids most aggressively
+var MAX_BID_INCREASE = 0.1;  // Max bid increase in Dollars
+var MIN_CONVERSIONS = 5;    // Minimum number of conversions to make a bid increase. Set this to 1 to increase bids most aggressively
 
-var MAX_POSITION = 1.0;  // Do not increase bids if the keyword is already at this position or better
+var MAX_POSITION = 1.1;  // Do not increase bids if the keyword is already at this position or better
 var MIN_BID = 0.01; // The minimum bid to decrease to
 
-var AGGRESSIVE_BIDDING = true;   // Don't lower bids unless the current CPA is over  HIGHCOST_VALUE or MAX_COS
+var AGGRESSIVE_BIDDING = false;   // Don't lower bids unless the current CPA is over  HIGHCOST_VALUE or MAX_COS
 
 // LABELS
 var LABEL_PROCESSING = 'Processing';
