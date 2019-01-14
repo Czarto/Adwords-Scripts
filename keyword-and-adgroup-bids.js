@@ -185,8 +185,7 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
       var current_cpc = adGroup.bidding().getCpc();
       var conversionValue = getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd);
       var costOfSales = cost / conversionValue;
-      var max_cpc = (conversionValue / clicks) * PROFIT_MARGIN;
-      max_cpc = (Math.min(current_cpc + MAX_BID_INCREASE, max_cpc));
+      max_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
 
       if (AGGRESSIVE_BIDDING) {
         // Don't lower the bid unless cost of sales is too high
@@ -238,8 +237,48 @@ function getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd) {
       }
 }
 
+
+//
+// Get the total Conversion Value for this keyword and date range
+// TODO: Make this work
+//
+function getKeywordConversionValue(keyword, dateRange, dateRangeEnd) {
+
+  /*
+  var reportName = "ADGROUP_PERFORMANCE_REPORT";
+  if( keyword.getEntityType == "ShoppingAdGroup") {
+    reportName = "SHOPPING_PERFORMANCE_REPORT";
+  }
+
+  var report = AdWordsApp.report(
+      "SELECT ConversionValue, Conversions " +
+      "FROM " + reportName + " " +
+      "WHERE AdGroupId = " + adGroup.getId() + " " +
+      "DURING " + dateRangeToString(dateRange, dateRangeEnd));
+
+  var convVals = report.rows();
+
+  if(convVals.hasNext()) {
+    var data = convVals.next();
+    var conversions = parseFloat(data.Conversions);
+    var conversionValue = parseFloat(data.ConversionValue.replace(',',''));
+    
+    if( USE_ACTUAL_CONVERSION_VALUE ) {
+      return conversionValue;
+    } else {
+      return conversions * CONVERSION_VALUE;
+    }
+  } else {
+    return 0
+  }
+  */
+}
+
+//
+// TODO: Make this work
+//
 function setKeywordsToMax(dateRange, dateRangeEnd) {
-  Logger.log('increaseKeywordsToMax');
+  /*Logger.log('increaseKeywordsToMax');
   
   var KeywordIterator = AdWordsApp.keywords()
       .forDateRange(dateRange, dateRangeEnd)
@@ -256,14 +295,12 @@ function setKeywordsToMax(dateRange, dateRangeEnd) {
     var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
     var conversions = stats.getConversions();
     var cost = stats.getCost();
+    var clicks = stats.getClicks();
+    var current_cpc = keyword.bidding().getCpc();
     var CPA = cost / conversions;
-    var conv_rate = stats.getConversionRate();
-    var max_cpc = (conv_rate * CONVERSION_VALUE);
+    var conversionValue = getKeywordConversionValue(adGroup, dateRange, dateRangeEnd);
 
-    // Temp variables
-    var keywordBidding = keyword.bidding();
-    var current_cpc = keywordBidding.getCpc();
-    max_cpc = (Math.min(current_cpc+MAX_BID_INCREASE, max_cpc));
+    var max_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
 
     if( AGGRESSIVE_BIDDING ) {
       if( max_cpc > current_cpc || CPA > CONVERSION_VALUE ) {
@@ -277,7 +314,7 @@ function setKeywordsToMax(dateRange, dateRangeEnd) {
     // is still performing well, so we don't want further back looking
     // functions to reduce the keyword
     keyword.removeLabel(LABEL_PROCESSING);
-  } 
+  } */
 }
 
 
@@ -310,7 +347,6 @@ function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
     while (adGroupIterator.hasNext()) {
       var adGroup = adGroupIterator.next();
       var stats = adGroup.getStatsFor(dateRange, dateRangeEnd);
-      var cost = stats.getCost();
       var clicks = stats.getClicks();
       var current_cpc = adGroup.bidding().getCpc();
       // Add default value of a conversion, to calculate new max CPC optimistically that we
@@ -318,7 +354,7 @@ function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
       var conversionValue = getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd);
       conversionValue = conversionValue + CONVERSION_VALUE;
 
-      var max_cpc = (conversionValue / clicks) * PROFIT_MARGIN;
+      max_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
 
       if( max_cpc < current_cpc) {
         adGroup.bidding().setCpc(max_cpc);
@@ -334,9 +370,10 @@ function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
 
 // 
 // Reset high cost keywords
+// TODO: Make this work
 // 
 function decreaseHighCostKeywords(dateRange, dateRangeEnd) {
-  Logger.log('\nSet Keyword Bids, High Cost : ' + dateRange); 
+  /*Logger.log('\nSet Keyword Bids, High Cost : ' + dateRange); 
   
   // We only look at 
   var KeywordIterator = AdWordsApp.keywords()
@@ -366,20 +403,21 @@ function decreaseHighCostKeywords(dateRange, dateRangeEnd) {
     var cpa = cost / conversions;
 
     if (cpa > HIGHCOST_VALUE && conv_rate > 0) {
-      var max_cpc = (conv_rate * CONVERSION_VALUE);
+      var max_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
       keyword.bidding().setCpc(max_cpc);
       keyword.removeLabel(LABEL_PROCESSING);
     }
-  } 
+  } */
 }
 
 // ---------
 
 // ******************************************************************
 // TODO: When do we set Keywords bids to Adgroup bids
+// TODO: Make this work
 // ******************************************************************
 function setKeywordBids(dateRange, dateRangeEnd) {
-  Logger.log('\nSet Keyword Bids : ' + dateRange);
+  /*Logger.log('\nSet Keyword Bids : ' + dateRange);
   
   var KeywordIterator = getSelector(AdWordsApp.keywords())
       .forDateRange(dateRange, dateRangeEnd)
@@ -393,11 +431,8 @@ function setKeywordBids(dateRange, dateRangeEnd) {
     var keyword = KeywordIterator.next();
     var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
     var conv_rate = stats.getConversionRate();
-    var max_cpc = (conv_rate * CONVERSION_VALUE);
-
-    // Temp variables
-    var keywordBidding = keyword.bidding();
-    var current_cpc = keywordBidding.getCpc();
+    var current_cpc = keyword.bidding().getCpc();
+    var max_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
     
     // Calculate Range for wich we want to keep adgroup bids
     var AdGroupCpc = keyword.getAdGroup().bidding().getCpc();
@@ -411,6 +446,8 @@ function setKeywordBids(dateRange, dateRangeEnd) {
        new_cpc = Math.max(current_cpc - MAX_BID_INCREASE, max_cpc);
     }
     
+    new_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
+
     if( new_cpc > current_cpc && stats.getAveragePosition() < MAX_POSITION ) {
       Logger.log('Keyword: ' + keyword.getText() + ' Position too high. Bid not updated.');
     } else if( new_cpc > AdGroupCpcMin && new_cpc < AdGroupCpcMax ) {
@@ -420,7 +457,7 @@ function setKeywordBids(dateRange, dateRangeEnd) {
       Logger.log('Keyword: ' + keyword.getText() + ' ConvRate:' + conv_rate + ' MaxCPC:' + max_cpc);   
       keywordBidding.setCpc(new_cpc);
     }
-  } 
+  } */
 }
 
 
@@ -451,7 +488,22 @@ function getSelector(selector) {
 }
 
 
-///
+//
+// Return the max COC bid based on the current bid, conversion value, and num clicks
+//
+function getMaxCpcBid(current_cpc, conversionValue, clicks)
+{
+  var MaxBidIncreaseLimit = current_cpc + MAX_BID_INCREASE;
+  var ProfitMarginLimit = (conversionValue / clicks) * PROFIT_MARGIN;
+
+  var maxCpcBid = Math.min(MaxBidIncreaseLimit, ProfitMarginLimit);
+
+  // Ensure bid is above 0.01 or MIN_BID
+  return Math.max(maxCpcBid, MIN_BID, 0.01);
+}
+
+
+//
 // Date range helper functions
 // Returns today's date.
 //
