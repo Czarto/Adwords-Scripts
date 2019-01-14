@@ -35,6 +35,7 @@ var MAX_BID_INCREASE = 1.0;  // In dollars. Set to 0 for no limit
 var MIN_CONVERSIONS = 10;    // Minimum number of conversions to make a bid increase. Set this to 1 to increase bids most aggressively
 
 var MAX_POSITION = 1.0;  // Do not increase bids if the keyword is already at this position or better
+var MIN_BID = 0.01; // The minimum bid to decrease to
 
 // LOGIC FLAGS
 var AGGRESSIVE_BIDDING = true;   // Don't lower bids unless the current CPA is over  HIGHCOST_VALUE or MAX_COS
@@ -188,6 +189,7 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
       var costOfSales = cost / conversionValue;
       var max_cpc = roundDown(conversionValue / clicks) * PROFIT_MARGIN;
 
+
       if (MAX_BID_INCREASE > 0) {
         max_cpc = roundDown(Math.min(current_cpc + MAX_BID_INCREASE, max_cpc));
       }
@@ -196,19 +198,9 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
         // Don't lower the bid unless cost of sales is too high
         if (max_cpc > current_cpc || costOfSales > PROFIT_MARGIN) {
           adGroup.bidding().setCpc(max_cpc);
-
-          // For Shopping, we also need to set the Product Group bid
-          if( adGroup.getEntityType() == "ShoppingAdGroup") {
-            adGroup.productGroups().get().next().setMaxCpc(max_cpc);
-          }
         }
       } else {  // Balanced Bidding
         adGroup.bidding().setCpc(max_cpc);
-
-        // For Shopping, we also need to set the Product Group bid
-        if( adGroup.getEntityType() == "ShoppingAdGroup") {
-          adGroup.productGroups().get().next().setMaxCpc(max_cpc);
-        }
       }
 
       // Remove processing label even if no changes made, as the keyword
@@ -339,11 +331,6 @@ function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
 
       if( max_cpc < current_cpc) {
         adGroup.bidding().setCpc(max_cpc);
-
-        // For Shopping, we also need to set the Product Group bid
-        if( adGroup.getEntityType() == "ShoppingAdGroup") {
-          adGroup.productGroups().get().next().setMaxCpc(max_cpc);
-        }
         // Do not remove processing label. Give a chance for more data
         // to increase the bid
         //adGroup.removeLabel(LABEL_PROCESSING);
