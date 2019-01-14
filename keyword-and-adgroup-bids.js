@@ -1,4 +1,4 @@
-// Version: V2 Foxtrot
+// Version: V2 Giraffe
 
 /***********
 
@@ -102,7 +102,8 @@ function main() {
 function initLabels() {
   checkLabelExists();
 
-  var itemsToLabel = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups(), AdWordsApp.keywords()];
+  //var itemsToLabel = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups(), AdWordsApp.keywords()];
+  var itemsToLabel = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups()];
 
   for (i = 0; i < itemsToLabel.length; i++) {
     var iterator = getSelector(itemsToLabel[i]).get();
@@ -139,7 +140,8 @@ function checkLabelExists() {
 // Remove Processing label
 //
 function cleanup() {
-  var cleanupList = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups(), AdWordsApp.keywords()];
+  //var cleanupList = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups(), AdWordsApp.keywords()];
+  var cleanupList = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups()];
 
   for (i = 0; i < cleanupList.length; i++) {
     // Cleanup AdGoups
@@ -189,7 +191,7 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
 
       // If Aggressive bidding is set, only lower the bid if costOfSales is too high
       if( AGGRESSIVE_BIDDING && costOfSales < PROFIT_MARGIN ) {
-        max_cpc = max(max_cpc, current_cpc);
+        max_cpc = Math.max(max_cpc, current_cpc);
       }
 
       adGroup.bidding().setCpc(max_cpc);
