@@ -170,10 +170,10 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
       .withCondition("Conversions >= " + MIN_CONVERSIONS)
       .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
       .withCondition("Clicks > 0");
-      if( adGroupTypes[i].getEntityType == "AdGroup") {
-        adGroupIterator = adGroupIterator.withCondition("AveragePosition > " + MAX_POSITION)
-      }
-      adGroupIterator = adGroupIterator.get();
+    if( adGroupTypes[i].getEntityType == "AdGroup") {
+      adGroupIterator = adGroupIterator.withCondition("AveragePosition > " + MAX_POSITION)
+    }
+    adGroupIterator = adGroupIterator.get();
 
     Logger.log('Total adGroups found : ' + adGroupIterator.totalNumEntities());
 
@@ -187,14 +187,12 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
       var costOfSales = cost / conversionValue;
       max_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
 
-      if (AGGRESSIVE_BIDDING) {
-        // Don't lower the bid unless cost of sales is too high
-        if (max_cpc > current_cpc || costOfSales > PROFIT_MARGIN) {
-          adGroup.bidding().setCpc(max_cpc);
-        }
-      } else {  // Balanced Bidding
-        adGroup.bidding().setCpc(max_cpc);
+      // If Aggressive bidding is set, only lower the bid if costOfSales is too high
+      if( AGGRESSIVE_BIDDING && costOfSales < PROFIT_MARGIN ) {
+        max_cpc = max(max_cpc, current_cpc);
       }
+
+      adGroup.bidding().setCpc(max_cpc);
 
       // Remove processing label even if no changes made, as the keyword
       // is still performing well, so we don't want further back looking
@@ -302,13 +300,12 @@ function setKeywordsToMax(dateRange, dateRangeEnd) {
 
     var max_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
 
-    if( AGGRESSIVE_BIDDING ) {
-      if( max_cpc > current_cpc || CPA > CONVERSION_VALUE ) {
-        keyword.bidding().setCpc(max_cpc);
-      }
-    } else {  // Blanced Bidding
-      keyword.bidding().setCpc(max_cpc);
+    // If Aggressive bidding is set, only lower the bid if costOfSales is too high
+    if( AGGRESSIVE_BIDDING && costOfSales < PROFIT_MARGIN ) {
+      max_cpc = max(max_cpc, current_cpc);
     }
+
+    adGroup.bidding().setCpc(max_cpc);
     
     // Remove processing label even if no changes made, as the keyword
     // is still performing well, so we don't want further back looking
