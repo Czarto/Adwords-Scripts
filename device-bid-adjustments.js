@@ -1,4 +1,4 @@
-// Version: Kunta
+// Version: Kunta2
 
 /***********
 
@@ -46,6 +46,7 @@ function main() {
     setDeviceBidModifier("LAST_7_DAYS");
     setDeviceBidModifier("LAST_14_DAYS");
     setDeviceBidModifier("LAST_30_DAYS");
+    setDeviceBidModifier(LAST_90_DAYS(), TODAY());
     setDeviceBidModifier(LAST_YEAR(), TODAY());
 
     cleanup(); // Remove Labels
@@ -291,6 +292,22 @@ function TODAY() {
 
     return { year: yyyy, month: mm, day: dd };
 }
+
+//
+// Date range helper functions
+// Returns date 90 days ago
+//
+function LAST_90_DAYS() {
+    var date = new Date(); 
+    date.setDate(date.getDate() - 90);
+    
+    var dd = date.getDate();
+    var mm = date.getMonth()+1; //January is 0!
+    var yyyy = date.getFullYear();
+  
+    return {year: yyyy, month: mm, day: dd};
+  }
+
 
 function LAST_YEAR() {
     var today = TODAY();
