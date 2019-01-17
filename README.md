@@ -37,4 +37,5 @@ Set product group bids to the bid of the AdGroup.
 
 ## Automated Bid Adjustments for GeoLocation, Schedule, and  Device
 Set bid adjustments for GeoLocation, Schedule, and Device based on the relative conversion rates of each segment.
-- <a href="https://github.com/Czarto/Adwords-Scripts/blob/master/targeting-bid-adjustments.js">targeting-bid-adjustments.js</a>
+- Geolocations & Schedule: <a href="https://github.com/Czarto/Adwords-Scripts/blob/master/targeting-bid-adjustments.js">targeting-bid-adjustments.js</a>
+- Device: <a href="https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js">device-bid-adjustments.js</a>
