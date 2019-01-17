@@ -1,10 +1,10 @@
-// Version: Jungle
+// Version: Kunta
 
 /***********
 
 MIT License
 
-Copyright (c) 2016-2017 Alex Czartoryski
+Copyright (c) 2016-2019 Alex Czartoryski
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,30 +34,26 @@ var TAG_IGNORE = '';
 var LOCATION_IGNORE_COUNTRY = true; // Ignore location bid adjustments for Countries
 var LOCATION_IGNORE_STATE = false;  // Ignore location bid adjustments for States or Provinces
 
-var THRESHOLD_INCREASE = 10;    // Set this to 1 to increase bids more aggressively
-var THRESHOLD_DECREASE = 5;    // Set this to 1 to decrease bids more aggressively
+var MIN_CONVERSIONS = 10;    // Set this to 1 to increase bids more aggressively
+var MIN_CONVERSIONS = 5;    // Set this to 1 to decrease bids more aggressively
 
 var HIGH_COST = 40;    // How much is too much
 
 var STOPLIMIT_POSITION = 1.3; // Do not increase bids at this position or better
-var STOPLIMIT_ADJUSTMENT = 1.50; // Do not increase adjustments above +50%
+var MAX_BID_ADJUSTMENT = 1.50; // Do not increase adjustments above +50%
 
 
 
 function main() {
     setLocationBids(LAST_YEAR(), TODAY());
     setAdScheduleBids(LAST_YEAR(), TODAY());
-    setMobileBidModifier(LAST_YEAR(), TODAY());
 
     setLocationBids("LAST_30_DAYS");
     setAdScheduleBids("LAST_30_DAYS");
-    setMobileBidModifier("LAST_30_DAYS");
 
     setLocationBids("LAST_14_DAYS");
-    setMobileBidModifier("LAST_14_DAYS");
 
     setLocationBids("LAST_7_DAYS");
-    setMobileBidModifier("LAST_7_DAYS");
 }
 
 
@@ -213,87 +209,6 @@ function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd
 }
 
 
-
-// Mobile Bids
-function setMobileBidModifier(dateRange, dateRangeEnd) {
-
-    var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd).get();
-
-    Logger.log(' ')
-    Logger.log('### ADJUST MOBILE TARGETING BIDS ###');
-    Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
-
-    setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRangeEnd)
-
-    // Adjust for Shopping campaigns
-    var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd, true).get();
-
-    Logger.log(' ')
-    Logger.log('Shopping Campaigns');
-    Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
-
-    setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRangeEnd);
-}
-
-
-
-function setMobileBidModifierForCampaigns(campaignIterator, dateRange, dateRangeEnd) {
-
-    while (campaignIterator.hasNext()) {
-        var campaign = campaignIterator.next();
-        var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getConversionRate();
-
-        Logger.log(' ');
-        Logger.log('CAMPAIGN: ' + campaign.getName());
-
-        var desktopTargetIterator = campaign.targeting().platforms().desktop().get();
-        var tabletTargetIterator = campaign.targeting().platforms().tablet().get();
-        var mobileTargetIterator = campaign.targeting().platforms().mobile().get();
-
-        if (desktopTargetIterator.hasNext()) {
-            var desktopTarget = desktopTargetIterator.next();
-            var stats = desktopTarget.getStatsFor(dateRange, dateRangeEnd);
-            var currentBidModifier = desktopTarget.getBidModifier();
-
-            if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-                    increaseBid(desktopTarget);
-                } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-                    decreaseBid(desktopTarget);
-                }
-        }
-      
-            if (tabletTargetIterator.hasNext()) {
-                var tabletTarget = tabletTargetIterator.next();
-                var stats = tabletTarget.getStatsFor(dateRange, dateRangeEnd);
-                var currentBidModifier = tabletTarget.getBidModifier();
-
-                if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-                    increaseBid(tabletTarget);
-                } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-                    decreaseBid(tabletTarget);
-                }
-
-            }
-
-            if (mobileTargetIterator.hasNext()) {
-                var mobileTarget = mobileTargetIterator.next();
-                var stats = mobileTarget.getStatsFor(dateRange, dateRangeEnd);
-                var currentBidModifier = mobileTarget.getBidModifier();
-
-
-                if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-                    increaseBid(mobileTarget);
-                } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-                    decreaseBid(mobileTarget);
-                }
-
-            }
-        
-    }
-}
-
-
-
 //
 // Returns true if a bid increase is needed, false otherwise
 //
@@ -306,16 +221,16 @@ function isBidIncreaseNeeded(stats, currentBid, baselineConversionRate) {
     if (isBidChangeSignificant(currentBid, targetBid)) {
         var isIncreaseNeeded = (targetBid > currentBid
             && (position > STOPLIMIT_POSITION || position == 0)
-            && currentBid < STOPLIMIT_ADJUSTMENT
-            && conversions >= THRESHOLD_INCREASE);
+            && currentBid < MAX_BID_ADJUSTMENT
+            && conversions >= MIN_CONVERSIONS);
 
         if (DEBUG) {
             Logger.log('          ^ Is increase needed? ' + isIncreaseNeeded
                 + ':: targetBid:' + targetBid + ' currentBid:' + currentBid
                 + ':: conversionRate:' + conversionRate + ' baseline:' + baselineConversionRate
                 + ':: position:' + position + ' stoplimit:' + STOPLIMIT_POSITION
-                + ':: currentBid:' + currentBid + ' stoplimit:' + STOPLIMIT_ADJUSTMENT
-                + ':: conversions:' + conversions + ' threshold:' + THRESHOLD_INCREASE);
+                + ':: currentBid:' + currentBid + ' stoplimit:' + MAX_BID_ADJUSTMENT
+                + ':: conversions:' + conversions + ' threshold:' + MIN_CONVERSIONS);
         }
 
         return (isIncreaseNeeded);
@@ -334,13 +249,13 @@ function isBidDecreaseNeeded(stats, currentBid, baselineConversionRate) {
     var targetBid = (conversionRate / baselineConversionRate)
 
     if (isBidChangeSignificant(currentBid, targetBid)) {
-        var isDecreaseNeeded = (targetBid < currentBid && conversions >= THRESHOLD_DECREASE);
+        var isDecreaseNeeded = (targetBid < currentBid && conversions >= MIN_CONVERSIONS);
 
         if (DEBUG) {
             Logger.log('          ^ Is decrease needed? ' + isDecreaseNeeded
                 + ':: targetBid:' + targetBid + ' currentBid:' + currentBid
                 + ':: conversionRate:' + conversionRate + ' baseline:' + baselineConversionRate
-                + ':: conversions:' + conversions + ' threshold:' + THRESHOLD_DECREASE);
+                + ':: conversions:' + conversions + ' threshold:' + MIN_CONVERSIONS);
         }
 
         return (isDecreaseNeeded);
