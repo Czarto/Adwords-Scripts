@@ -1,4 +1,4 @@
-// Version: Kunta2
+// Version: Lomo
 
 /***********
 
@@ -43,10 +43,25 @@ var MAX_BID_ADJUSTMENT = 1.90; // Do not increase adjustments above +90%
 function main() {
     initLabels(); // Create Labels
 
+    //Logger.log(' ');
+    //Logger.log('### ADJUST DEVICE TARGETING ###');
+    //Logger.log('--- 7 Days');
     setDeviceBidModifier("LAST_7_DAYS");
+
+    //Logger.log(' ');
+    //Logger.log('--- 14 Days');
     setDeviceBidModifier("LAST_14_DAYS");
+
+    //Logger.log(' ');
+    //Logger.log('--- 30 Days');
     setDeviceBidModifier("LAST_30_DAYS");
+
+    //Logger.log(' ');
+    //Logger.log('--- 90 Days');
     setDeviceBidModifier(LAST_90_DAYS(), TODAY());
+
+    //Logger.log(' ');
+    //Logger.log('--- 365 Days');
     setDeviceBidModifier(LAST_YEAR(), TODAY());
 
     cleanup(); // Remove Labels
@@ -114,33 +129,33 @@ function cleanup() {
 // Mobile Bids
 function setDeviceBidModifier(dateRange, dateRangeEnd) {
 
-    var campaignTypes = [AdWordsApp.campaigns(), AdWordsApp.shoppingCampaigns()];
+    var STANDARD = 0;
+    var SHOPPING = 1;
 
-    for (i = 0; i < campaignTypes.length; i++) {
+    for (i = 0; i < 2; i++) {
+        //Logger.log('---  ' + (i==STANDARD ? 'Standard Campaigns' : 'Shopping Campaigns'));
 
         var labels = [LABEL_PROCESSING_DESKTOP, LABEL_PROCESSING_MOBILE, LABEL_PROCESSING_TABLET];
+
         for (l = 0; l < labels.length; l++) {
-            var campaignIterator = campaignTypes[i].forDateRange(dateRange, dateRangeEnd)
+            //Logger.log('     ' + labels[l]);
+
+            var campaigns = (i==STANDARD ? AdWordsApp.campaigns() : AdWordsApp.shoppingCampaigns());
+            var campaignIterator = campaigns.forDateRange(dateRange, dateRangeEnd)
                 .withCondition("Status = ENABLED")
                 .withCondition("Conversions >= " + MIN_CONVERSIONS)
                 .withCondition("LabelNames CONTAINS_ANY ['" + labels[l] + "']")
                 .get();
 
-            Logger.log(' ');
-            Logger.log('### ADJUST MOBILE TARGETING BIDS ###');
-            Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
-
             while (campaignIterator.hasNext()) {
                 var campaign = campaignIterator.next();
                 var baseConversionRate = campaign.getStatsFor(dateRange, dateRangeEnd).getConversionRate();
                 var platforms = [campaign.targeting().platforms().desktop(),
-                campaign.targeting().platforms().mobile(),
-                campaign.targeting().platforms().tablet()
+                    campaign.targeting().platforms().mobile(),
+                    campaign.targeting().platforms().tablet()
                 ];
 
-                Logger.log(' ');
-                Logger.log('CAMPAIGN: ' + campaign.getName());
-
+                //Logger.log('    CAMPAIGN: ' + campaign.getName());
 
                 var targetIterator = platforms[l].get();
                 if (targetIterator.hasNext()) {
@@ -151,18 +166,19 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
                     var targetModifier = (conversionRate / baseConversionRate);
                     var currentModifier = target.getBidModifier();
 
+                    //Logger.log('    Conversions: ' + conversions);
+                    
                     if (conversions >= MIN_CONVERSIONS) {
                         if (Math.abs(currentModifier - targetModifier) >= BID_INCREMENT) {
                             if (targetModifier > currentModifier) {
-                                // Increase Modifier
                                 target.setBidModifier(Math.min(currentModifier + BID_INCREMENT, MAX_BID_ADJUSTMENT));
                             } else {
-                                // Decrease Modifier
                                 target.setBidModifier(Math.max(currentModifier - BID_INCREMENT, 0.1));
                             }
                         }
 
                         campaign.removeLabel(labels[l]);
+                        //Logger.log('    Remove Label: ' + labels[l]);
                     }
                 }
 
