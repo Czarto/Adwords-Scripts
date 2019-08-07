@@ -1,4 +1,4 @@
-// Version: V2 Giraffe
+// Version: V2.01 Giraffe
 
 /***********
 
@@ -26,8 +26,8 @@ SOFTWARE.
 
 **********/
 
-var CONVERSION_VALUE = 40.0; // Your profit margin per sale
-var HIGHCOST_VALUE = CONVERSION_VALUE; // How much is too much
+var CONVERSION_VALUE = 40.0; // Your average order value
+var HIGHCOST_VALUE = CONVERSION_VALUE; // How much is too much, before you lower your bids
 var USE_ACTUAL_CONVERSION_VALUE = true;
 var PROFIT_MARGIN = 0.4; // Percentage. The maximum percentage of sales you are willing to spend
 
