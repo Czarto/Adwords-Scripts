@@ -1,4 +1,4 @@
-// Version: V2.01 Giraffe
+// Version: V2.1
 
 /***********
 
@@ -34,7 +34,6 @@ var PROFIT_MARGIN = 0.4; // Percentage. The maximum percentage of sales you are 
 var MAX_BID_INCREASE = 0.1;  // Max bid increase in Dollars
 var MIN_CONVERSIONS = 5;    // Minimum number of conversions to make a bid increase. Set this to 1 to increase bids most aggressively
 
-var MAX_POSITION = 1.1;  // Do not increase bids if the keyword is already at this position or better
 var MIN_BID = 0.01; // The minimum bid to decrease to
 
 var AGGRESSIVE_BIDDING = false;   // Don't lower bids unless the current CPA is over  HIGHCOST_VALUE or MAX_COS
@@ -172,9 +171,6 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
       .withCondition("Conversions >= " + MIN_CONVERSIONS)
       .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
       .withCondition("Clicks > 0");
-    if( adGroupTypes[i].getEntityType == "AdGroup") {
-      adGroupIterator = adGroupIterator.withCondition("AveragePosition > " + MAX_POSITION)
-    }
     adGroupIterator = adGroupIterator.get();
 
     Logger.log('Total adGroups found : ' + adGroupIterator.totalNumEntities());
@@ -285,7 +281,6 @@ function setKeywordsToMax(dateRange, dateRangeEnd) {
       .withCondition("Conversions >= " + MIN_CONVERSIONS)
       .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
       .withCondition("Clicks > 0")
-      .withCondition("AveragePosition > " + MAX_POSITION)
       .get();
   
   Logger.log('Total Keywords found : ' + KeywordIterator.totalNumEntities());
@@ -447,7 +442,7 @@ function setKeywordBids(dateRange, dateRangeEnd) {
     
     new_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
 
-    if( new_cpc > current_cpc && stats.getAveragePosition() < MAX_POSITION ) {
+    if( new_cpc > current_cpc ) {
       Logger.log('Keyword: ' + keyword.getText() + ' Position too high. Bid not updated.');
     } else if( new_cpc > AdGroupCpcMin && new_cpc < AdGroupCpcMax ) {
       keywordBidding.clearCpc();
