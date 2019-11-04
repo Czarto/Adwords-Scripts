@@ -1,4 +1,4 @@
-// Version: V2.1
+// Version: V2.2
 
 /***********
 
@@ -41,6 +41,7 @@ var AGGRESSIVE_BIDDING = false;   // Don't lower bids unless the current CPA is 
 // LABELS
 var LABEL_PROCESSING = 'Processing';
 var TAG_IGNORE = 'Script Ignore';
+var TAG_INCLUDE = '';
 
 // CAMPAIGN FILTERS
 var CAMPAIGN_INCLUDE = ''; // Only include Adgroups and keywords in Campaigns with this text string in the name
@@ -466,6 +467,11 @@ function getSelector(selector) {
       .withCondition("CampaignStatus = ENABLED")
       .withCondition("AdGroupStatus = ENABLED");
   
+  
+  if( TAG_INCLUDE.length > 0 ) {
+    aSelector = aSelector.withCondition("LabelNames CONTAINS_ALL ['" + TAG_INCLUDE + "']");
+  }
+
   if( TAG_IGNORE.length > 0 ) {
     aSelector = aSelector.withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
   }
