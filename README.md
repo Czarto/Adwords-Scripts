@@ -4,7 +4,7 @@
 
 MIT License
 
-Copyright (c) 2016-2018 Alex Czartoryski
+Copyright (c) 2016-2021 Alex Czartoryski
 https://business.czarto.com/
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
