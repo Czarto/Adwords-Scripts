@@ -1,4 +1,10 @@
-// Version: Lomo
+// Version: 1.13 Muppet
+// Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js
+//
+// This Google Ads Script will incrementally change device bid adjustments
+// based on conversion rates using the Campaign's average conversion rate
+// as a baseline.
+//
 
 /***********
 
@@ -30,38 +36,28 @@ var LABEL_PROCESSING_DESKTOP = "_processing_desktop";
 var LABEL_PROCESSING_MOBILE = "_processing_mobile";
 var LABEL_PROCESSING_TABLET = "_processing_tablet";
 
-var BID_INCREMENT = 0.05;       // Raise and Lower bids by this value
-var DEBUG = false;
-
-var MIN_CONVERSIONS = 10;    // Minimum conversions needed to adjust bids.
-
-var MAX_COST = 100;    // How much is too much. TODO: Decrease modifier if costs are above a threshold
-var MAX_BID_ADJUSTMENT = 1.90; // Do not increase adjustments above +90%
+var BID_INCREMENT = 0.05;       // Value by which to adjust bids
+var MIN_CONVERSIONS = 10;       // Minimum conversions needed to adjust bids.
+var MAX_BID_ADJUSTMENT = 1.90;  // Do not increase adjustments above this value
 
 
 
 function main() {
     initLabels(); // Create Labels
 
-    //Logger.log(' ');
-    //Logger.log('### ADJUST DEVICE TARGETING ###');
-    //Logger.log('--- 7 Days');
-    setDeviceBidModifier("LAST_7_DAYS");
+    /*****
+      Device performance *should* theoretically not vary over time
+      (unless a site redesign has been performed) and so it makes
+      most sense to use a relatively long time period (1 year)
+      on which to base adjustments.
 
-    //Logger.log(' ');
-    //Logger.log('--- 14 Days');
-    setDeviceBidModifier("LAST_14_DAYS");
+      Shorter time periods included for reference, but commented out
+    *****/
 
-    //Logger.log(' ');
-    //Logger.log('--- 30 Days');
-    setDeviceBidModifier("LAST_30_DAYS");
-
-    //Logger.log(' ');
-    //Logger.log('--- 90 Days');
-    setDeviceBidModifier(LAST_90_DAYS(), TODAY());
-
-    //Logger.log(' ');
-    //Logger.log('--- 365 Days');
+    //setDeviceBidModifier("LAST_7_DAYS");
+    //setDeviceBidModifier("LAST_14_DAYS");
+    //setDeviceBidModifier("LAST_30_DAYS");
+    //setDeviceBidModifier(LAST_90_DAYS(), TODAY());
     setDeviceBidModifier(LAST_YEAR(), TODAY());
 
     cleanup(); // Remove Labels
@@ -70,6 +66,8 @@ function main() {
 
 //
 // Set the Processing label
+// This keeps track of which bid adjustments have already been processed
+// in the case where multiple time-lookback windows are being used
 //
 function initLabels() {
     checkLabelExists();
@@ -101,7 +99,7 @@ function checkLabelExists() {
     for (i = 0; i < labels.length; i++) {
         var labelIterator = AdWordsApp.labels().withCondition("Name = '" + labels[i] + "'").get();
         if (!labelIterator.hasNext()) {
-            AdWordsApp.createLabel(labels[i], "AdWords Scripts label used to process bids");
+            AdWordsApp.createLabel(labels[i], "AdWords Scripts label used to process device bid adjustments");
         }
     }
 }
@@ -126,7 +124,9 @@ function cleanup() {
 }
 
 
-// Mobile Bids
+//
+// Set Device Bids
+//
 function setDeviceBidModifier(dateRange, dateRangeEnd) {
 
     var STANDARD = 0;
@@ -187,6 +187,10 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
     }
 }
 
+//
+// Date range helper function
+// Returns today's date
+//
 function TODAY() {
     var today = new Date();
     var dd = today.getDate();
@@ -211,7 +215,10 @@ function LAST_90_DAYS() {
     return {year: yyyy, month: mm, day: dd};
   }
 
-
+//
+// Date range helper functions
+// Returns date 1 year ago
+//
 function LAST_YEAR() {
     var today = TODAY();
 
