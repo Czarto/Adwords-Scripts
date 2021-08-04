@@ -1,4 +1,4 @@
-// Version: V2.2
+// Version: V2.3
 
 /***********
 
@@ -92,7 +92,7 @@ function main() {
 function initLabels() {
   checkLabelExists();
 
-  var itemsToLabel = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups()];
+  var itemsToLabel = [AdsApp.adGroups(), AdsApp.shoppingAdGroups()];
 
   for (i = 0; i < itemsToLabel.length; i++) {
     var iterator = getSelector(itemsToLabel[i]).get();
@@ -107,20 +107,20 @@ function initLabels() {
 // Create the processing label if it does not exist
 //
 function checkLabelExists() {
-  var labelIterator = AdWordsApp.labels()
+  var labelIterator = AdsApp.labels()
     .withCondition("Name = '" + LABEL_PROCESSING + "'" )
     .get();
 
   if( !labelIterator.hasNext()) {
-    AdWordsApp.createLabel(LABEL_PROCESSING, "AdWords Scripts label used to process bids")
+    AdsApp.createLabel(LABEL_PROCESSING, "AdWords Scripts label used to process bids")
   }
 
-  var labelIterator = AdWordsApp.labels()
+  var labelIterator = AdsApp.labels()
   .withCondition("Name = '" + TAG_IGNORE + "'" )
   .get();
 
   if( !labelIterator.hasNext()) {
-    AdWordsApp.createLabel(TAG_IGNORE, "AdWords Scripts label used to ignore script processing")
+    AdsApp.createLabel(TAG_IGNORE, "AdWords Scripts label used to ignore script processing")
   } 
 }
 
@@ -129,7 +129,7 @@ function checkLabelExists() {
 // Remove Processing label
 //
 function cleanup() {
-  var cleanupList = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups()];
+  var cleanupList = [AdsApp.adGroups(), AdsApp.shoppingAdGroups()];
 
   for (i = 0; i < cleanupList.length; i++) {
     // Cleanup AdGoups
@@ -147,7 +147,7 @@ function cleanup() {
 function setAdGroupsToMax(dateRange, dateRangeEnd) {
   Logger.log('increaseAdGroupsToMax');
 
-  var adGroupTypes = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups()];
+  var adGroupTypes = [AdsApp.adGroups(), AdsApp.shoppingAdGroups()];
 
   for (i = 0; i < adGroupTypes.length; i++) {
     // Only process adGroups that have:
@@ -199,7 +199,7 @@ function getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd) {
     reportName = "SHOPPING_PERFORMANCE_REPORT";
   }
 
-  var report = AdWordsApp.report(
+  var report = AdsApp.report(
       "SELECT ConversionValue, Conversions " +
       "FROM " + reportName + " " +
       "WHERE AdGroupId = " + adGroup.getId() + " " +
@@ -230,7 +230,7 @@ function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
 
   Logger.log('\nHigh Cost AdGroups : ' + dateRangeToString(dateRange, dateRangeEnd));
 
-  var adGroupTypes = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups()];
+  var adGroupTypes = [AdsApp.adGroups(), AdsApp.shoppingAdGroups()];
 
   for (i = 0; i < adGroupTypes.length; i++) {
     // Only process adGroups that have:
