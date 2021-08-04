@@ -61,36 +61,26 @@ function main() {
   
   Logger.log('\n***** 7 DAYS *****');
   setAdGroupsToMax("LAST_7_DAYS");
-  //setKeywordsToMax("LAST_7_DAYS");
   decreaseHighCostAdGroups("LAST_7_DAYS");
-  //decreaseHighCostKeywords("LAST_7_DAYS");
   
   Logger.log('\n***** 14 DAYS *****');
   setAdGroupsToMax("LAST_14_DAYS");
-  //setKeywordsToMax("LAST_14_DAYS");
   decreaseHighCostAdGroups("LAST_14_DAYS");
-  //decreaseHighCostKeywords("LAST_14_DAYS");
 
   
   Logger.log('\n***** 30 DAYS *****');
   setAdGroupsToMax("LAST_30_DAYS");
-  //setKeywordsToMax("LAST_30_DAYS");
   decreaseHighCostAdGroups("LAST_30_DAYS");
-  //decreaseHighCostKeywords("LAST_30_DAYS");
 
   
   Logger.log('\n***** 90 DAYS *****');
   setAdGroupsToMax(LAST_90_DAYS(), TODAY());
-  //setKeywordsToMax(LAST_90_DAYS(), TODAY());
   decreaseHighCostAdGroups(LAST_90_DAYS(), TODAY());
-  //decreaseHighCostKeywords(LAST_90_DAYS(), TODAY());
 
   
   Logger.log('\n***** 1 YEAR *****');
   setAdGroupsToMax(LAST_YEAR(), TODAY());
-  //setKeywordsToMax(LAST_YEAR(), TODAY());
   decreaseHighCostAdGroups(LAST_YEAR(), TODAY());
-  //decreaseHighCostKeywords(LAST_YEAR(), TODAY());
 
   cleanup();
 }
@@ -102,7 +92,6 @@ function main() {
 function initLabels() {
   checkLabelExists();
 
-  //var itemsToLabel = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups(), AdWordsApp.keywords()];
   var itemsToLabel = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups()];
 
   for (i = 0; i < itemsToLabel.length; i++) {
@@ -140,7 +129,6 @@ function checkLabelExists() {
 // Remove Processing label
 //
 function cleanup() {
-  //var cleanupList = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups(), AdWordsApp.keywords()];
   var cleanupList = [AdWordsApp.adGroups(), AdWordsApp.shoppingAdGroups()];
 
   for (i = 0; i < cleanupList.length; i++) {
@@ -235,85 +223,6 @@ function getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd) {
 }
 
 
-//
-// Get the total Conversion Value for this keyword and date range
-// TODO: Make this work
-//
-function getKeywordConversionValue(keyword, dateRange, dateRangeEnd) {
-
-  /*
-  var reportName = "ADGROUP_PERFORMANCE_REPORT";
-  if( keyword.getEntityType == "ShoppingAdGroup") {
-    reportName = "SHOPPING_PERFORMANCE_REPORT";
-  }
-
-  var report = AdWordsApp.report(
-      "SELECT ConversionValue, Conversions " +
-      "FROM " + reportName + " " +
-      "WHERE AdGroupId = " + adGroup.getId() + " " +
-      "DURING " + dateRangeToString(dateRange, dateRangeEnd));
-
-  var convVals = report.rows();
-
-  if(convVals.hasNext()) {
-    var data = convVals.next();
-    var conversions = parseFloat(data.Conversions);
-    var conversionValue = parseFloat(data.ConversionValue.replace(',',''));
-    
-    if( USE_ACTUAL_CONVERSION_VALUE ) {
-      return conversionValue;
-    } else {
-      return conversions * CONVERSION_VALUE;
-    }
-  } else {
-    return 0
-  }
-  */
-}
-
-//
-// TODO: Make this work
-//
-function setKeywordsToMax(dateRange, dateRangeEnd) {
-  /*Logger.log('increaseKeywordsToMax');
-  
-  var KeywordIterator = AdWordsApp.keywords()
-      .forDateRange(dateRange, dateRangeEnd)
-      .withCondition("Conversions >= " + MIN_CONVERSIONS)
-      .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
-      .withCondition("Clicks > 0")
-      .get();
-  
-  Logger.log('Total Keywords found : ' + KeywordIterator.totalNumEntities());
-  
-  while (KeywordIterator.hasNext()) {
-    var keyword = KeywordIterator.next();
-    var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
-    var conversions = stats.getConversions();
-    var cost = stats.getCost();
-    var clicks = stats.getClicks();
-    var current_cpc = keyword.bidding().getCpc();
-    var CPA = cost / conversions;
-    var conversionValue = getKeywordConversionValue(adGroup, dateRange, dateRangeEnd);
-
-    var max_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
-
-    // If Aggressive bidding is set, only lower the bid if costOfSales is too high
-    if( AGGRESSIVE_BIDDING && costOfSales < PROFIT_MARGIN ) {
-      max_cpc = max(max_cpc, current_cpc);
-    }
-
-    adGroup.bidding().setCpc(max_cpc);
-    
-    // Remove processing label even if no changes made, as the keyword
-    // is still performing well, so we don't want further back looking
-    // functions to reduce the keyword
-    keyword.removeLabel(LABEL_PROCESSING);
-  } */
-}
-
-
-
 // 
 // Reset high cost AdGroups
 // 
@@ -360,101 +269,6 @@ function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
     }
   }
 }
-
-
-
-// 
-// Reset high cost keywords
-// TODO: Make this work
-// 
-function decreaseHighCostKeywords(dateRange, dateRangeEnd) {
-  /*Logger.log('\nSet Keyword Bids, High Cost : ' + dateRange); 
-  
-  // We only look at 
-  var KeywordIterator = AdWordsApp.keywords()
-     .forDateRange(dateRange, dateRangeEnd)
-     .withCondition("Conversions < " + MIN_CONVERSIONS)
-     .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
-     .withCondition("Clicks > 0")
-     .get();
-
-  
-  Logger.log('Total Keywords found : ' + KeywordIterator.totalNumEntities());
-  
-  while (KeywordIterator.hasNext()) {
-    var keyword = KeywordIterator.next();
-    var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
-    var conversions = stats.getConversions();
-    var clicks = stats.getClicks();
-    var cost = stats.getCost();
-    var conv_rate = stats.getConversionRate();
-
-
-    if( conversions < 1 && clicks > 0 ) {
-      conversions = 1;
-      conv_rate = conversions / clicks;
-    }
-    
-    var cpa = cost / conversions;
-
-    if (cpa > HIGHCOST_VALUE && conv_rate > 0) {
-      var max_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
-      keyword.bidding().setCpc(max_cpc);
-      keyword.removeLabel(LABEL_PROCESSING);
-    }
-  } */
-}
-
-// ---------
-
-// ******************************************************************
-// TODO: When do we set Keywords bids to Adgroup bids
-// TODO: Make this work
-// ******************************************************************
-function setKeywordBids(dateRange, dateRangeEnd) {
-  /*Logger.log('\nSet Keyword Bids : ' + dateRange);
-  
-  var KeywordIterator = getSelector(AdWordsApp.keywords())
-      .forDateRange(dateRange, dateRangeEnd)
-      .withCondition("Conversions > " + MIN_CONVERSIONS)
-      .withCondition("Clicks > 0")
-      .get();
-  
-  Logger.log('Total Keywords found : ' + KeywordIterator.totalNumEntities());
-  
-  while (KeywordIterator.hasNext()) {
-    var keyword = KeywordIterator.next();
-    var stats = keyword.getStatsFor(dateRange, dateRangeEnd);
-    var conv_rate = stats.getConversionRate();
-    var current_cpc = keyword.bidding().getCpc();
-    var max_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
-    
-    // Calculate Range for wich we want to keep adgroup bids
-    var AdGroupCpc = keyword.getAdGroup().bidding().getCpc();
-    var AdGroupCpcMin = AdGroupCpc * 0.9;
-    var AdGroupCpcMax = AdGroupCpc * 1.1;
-    
-    var new_cpc = max_cpc;
-    if( max_cpc > current_cpc) { // Increase bids
-       new_cpc = Math.min(current_cpc + MAX_BID_INCREASE, max_cpc);
-    } else if (max_cpc < current_cpc) { // Decrease bids
-       new_cpc = Math.max(current_cpc - MAX_BID_INCREASE, max_cpc);
-    }
-    
-    new_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
-
-    if( new_cpc > current_cpc ) {
-      Logger.log('Keyword: ' + keyword.getText() + ' Position too high. Bid not updated.');
-    } else if( new_cpc > AdGroupCpcMin && new_cpc < AdGroupCpcMax ) {
-      keywordBidding.clearCpc();
-      Logger.log('Keyword: ' + keyword.getText() + ' Keyword bid reset to AdGroup bid');
-    } else {
-      Logger.log('Keyword: ' + keyword.getText() + ' ConvRate:' + conv_rate + ' MaxCPC:' + max_cpc);   
-      keywordBidding.setCpc(new_cpc);
-    }
-  } */
-}
-
 
 
 
