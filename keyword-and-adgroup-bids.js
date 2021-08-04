@@ -4,7 +4,7 @@
 
 MIT License
 
-Copyright (c) 2016-2017 Alex Czartoryski
+Copyright (c) 2016-2021 Alex Czartoryski
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,21 +26,23 @@ SOFTWARE.
 
 **********/
 
-var CONVERSION_VALUE = 40.0; // Your average order value
-var HIGHCOST_VALUE = CONVERSION_VALUE; // How much is too much, before you lower your bids
+var AVG_CONV_VALUE = 40.0; // Average conversion value.
+var HIGH_COST_THRESHOLD = AVG_CONV_VALUE * 2; // How much is too much, before you lower your bids
 var USE_ACTUAL_CONVERSION_VALUE = true;
-var PROFIT_MARGIN = 0.4; // Percentage. The maximum percentage of sales you are willing to spend
 
-var MAX_BID_INCREASE = 0.1;  // Max bid increase in Dollars
-var MIN_CONVERSIONS = 5;    // Minimum number of conversions to make a bid increase. Set this to 1 to increase bids most aggressively
+// Performance Targets
+var MIN_ROAS = 2.5        // Minium Return on Ad Spend
+var MAX_COS = 1/MIN_ROAS; // Maximum Ad Spend as a % Cost of Sales.
 
-var MIN_BID = 0.01; // The minimum bid to decrease to
+var MAX_BID_INCREASE = 0.1; // Bids will be increased by at most this amount.
+var MIN_BID = 0.01;         // The minimum CPC bid to decrease to
+var MIN_CONVERSIONS = 5;    // Minimum number of conversions required to make a bid increase.
 
-var AGGRESSIVE_BIDDING = false;   // Don't lower bids unless the current CPA is over  HIGHCOST_VALUE or MAX_COS
+var AGGRESSIVE_BIDDING = false;   // When set to true, bids will not be lowered unless the current CPA is over HIGHCOST_VALUE or MAX_COS
 
 // LABELS
 var LABEL_PROCESSING = 'Processing';
-var TAG_IGNORE = 'Script Ignore';
+var TAG_IGNORE = '';
 var TAG_INCLUDE = '';
 
 // CAMPAIGN FILTERS
@@ -48,13 +50,7 @@ var CAMPAIGN_INCLUDE = ''; // Only include Adgroups and keywords in Campaigns wi
 var CAMPAIGN_EXCLUDE = ''; // Exclude Adgroups and keywords in Campaigns with this text string in the name
 
 
-// TODO: Review CONVERSION_VALUE vs HIGHCOST_VALUE vs PROFIT_MARGIN vs SALES_VALUE
-// TODO: Set keyword bids to adgroup bids when they are within range
-// TODO: Set keywords bids to adgroup bids when they are "low volume"
-// TODO: Set keywords bids to adgroup bids if they are below threshold, but conversion rate warrents it
-// TODO: (Last) Increase bids to top of page, if low volume, low cost, and has not been processed yet.
-// TODO: (Last) Increase bids to first page, if low volume, low cost, and has not been processed yet.
-// TODO: Check if 'Script Ignore' works
+
 
 function main() { 
   initLabels();
@@ -175,7 +171,7 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
       max_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
 
       // If Aggressive bidding is set, only lower the bid if costOfSales is too high
-      if( AGGRESSIVE_BIDDING && costOfSales < PROFIT_MARGIN ) {
+      if( AGGRESSIVE_BIDDING && costOfSales < MAX_COS ) {
         max_cpc = Math.max(max_cpc, current_cpc);
       }
 
@@ -215,7 +211,7 @@ function getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd) {
         if( USE_ACTUAL_CONVERSION_VALUE ) {
           return conversionValue;
         } else {
-          return conversions * CONVERSION_VALUE;
+          return conversions * AVG_CONV_VALUE;
         }
       } else {
         return 0
@@ -243,7 +239,7 @@ function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
       .withCondition("Conversions < " + MIN_CONVERSIONS)
       .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
       .withCondition("Clicks > 0")
-      .withCondition("Cost > " + HIGHCOST_VALUE)
+      .withCondition("Cost > " + HIGH_COST_THRESHOLD)
       .get();
 
     Logger.log('Total adGroups found : ' + adGroupIterator.totalNumEntities());
@@ -256,7 +252,7 @@ function decreaseHighCostAdGroups(dateRange, dateRangeEnd) {
       // Add default value of a conversion, to calculate new max CPC optimistically that we
       // might get an average conversion on the next click
       var conversionValue = getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd);
-      conversionValue = conversionValue + CONVERSION_VALUE;
+      conversionValue = conversionValue + AVG_CONV_VALUE;
 
       max_cpc = getMaxCpcBid(current_cpc, conversionValue, clicks);
 
@@ -308,7 +304,7 @@ function getSelector(selector) {
 function getMaxCpcBid(current_cpc, conversionValue, clicks)
 {
   var MaxBidIncreaseLimit = current_cpc + MAX_BID_INCREASE;
-  var ProfitMarginLimit = (conversionValue / clicks) * PROFIT_MARGIN;
+  var ProfitMarginLimit = (conversionValue / clicks) * MAX_COS;
 
   var maxCpcBid = Math.min(MaxBidIncreaseLimit, ProfitMarginLimit);
 
