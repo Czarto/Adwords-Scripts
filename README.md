@@ -27,12 +27,12 @@ SOFTWARE.
 
 # The Scripts
 
-## Automated Keyword and AdGroup Bids
+## Automated AdGroup Bids
 Set max CPC bids based on a sliding lookback window and based on a maximum cost of sales. Currently only sets bids at the adgroup level.
 - <a href="https://github.com/Czarto/Adwords-Scripts/blob/master/keyword-and-adgroup-bids.js">keyword-and-adgroup-bids.js</a>
 
 ## Set Shopping ProductGroup bids to the AdGroup bid
-Set product group bids to the bid of the AdGroup.
+Set product group CPC bids to the CPC bid of the AdGroup.
 - <a href="https://github.com/Czarto/Adwords-Scripts/blob/master/shopping-setproductbid-to-adgroupbid.js">shopping-setproductbid-to-adgroupbid.js</a>
 
 ## Automated Bid Adjustments for GeoLocation, Schedule, and  Device
