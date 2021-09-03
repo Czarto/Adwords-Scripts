@@ -1,4 +1,4 @@
-// Version: 1.13.1 Muppet
+// Version: 1.13.2 Muppet
 // Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js
 //
 // This Google Ads Script will incrementally change device bid adjustments
@@ -54,10 +54,10 @@ function main() {
       Shorter time periods included for reference, but commented out
     *****/
 
-    //setDeviceBidModifier("LAST_7_DAYS");
-    //setDeviceBidModifier("LAST_14_DAYS");
-    //setDeviceBidModifier("LAST_30_DAYS");
-    //setDeviceBidModifier(LAST_90_DAYS(), TODAY());
+    setDeviceBidModifier("LAST_7_DAYS");
+    setDeviceBidModifier("LAST_14_DAYS");
+    setDeviceBidModifier("LAST_30_DAYS");
+    setDeviceBidModifier(LAST_90_DAYS(), TODAY());
     setDeviceBidModifier(LAST_YEAR(), TODAY());
 
     cleanup(); // Remove Labels
@@ -73,7 +73,7 @@ function initLabels() {
     checkLabelExists();
     cleanup();
 
-    var itemsToLabel = [AdWordsApp.campaigns(), AdWordsApp.shoppingCampaigns()];
+    var itemsToLabel = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
 
     for (i = 0; i < itemsToLabel.length; i++) {
         var iterator = itemsToLabel[i].get();
@@ -97,9 +97,9 @@ function checkLabelExists() {
     var labels = [LABEL_PROCESSING_DESKTOP, LABEL_PROCESSING_MOBILE, LABEL_PROCESSING_TABLET];
 
     for (i = 0; i < labels.length; i++) {
-        var labelIterator = AdWordsApp.labels().withCondition("Name = '" + labels[i] + "'").get();
+        var labelIterator = AdsApp.labels().withCondition("Name = '" + labels[i] + "'").get();
         if (!labelIterator.hasNext()) {
-            AdWordsApp.createLabel(labels[i], "AdWords Scripts label used to process device bid adjustments");
+            AdsApp.createLabel(labels[i], "AdWords Scripts label used to process device bid adjustments");
         }
     }
 }
@@ -109,7 +109,7 @@ function checkLabelExists() {
 // Remove Processing label
 //
 function cleanup() {
-    var cleanupList = [AdWordsApp.campaigns(), AdWordsApp.shoppingCampaigns()];
+    var cleanupList = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
 
     for (i = 0; i < cleanupList.length; i++) {
         var iterator = cleanupList[i].get();
@@ -132,6 +132,8 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
     var STANDARD = 0;
     var SHOPPING = 1;
 
+    Logger.log('Date Range from ' + dateRange + ' to ' + dateRangeEnd);
+
     for (i = 0; i < 2; i++) {
         //Logger.log('---  ' + (i==STANDARD ? 'Standard Campaigns' : 'Shopping Campaigns'));
 
@@ -140,7 +142,7 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
         for (l = 0; l < labels.length; l++) {
             //Logger.log('     ' + labels[l]);
 
-            var campaigns = (i==STANDARD ? AdWordsApp.campaigns() : AdWordsApp.shoppingCampaigns());
+            var campaigns = (i==STANDARD ? AdsApp.campaigns() : AdsApp.shoppingCampaigns());
             var campaignIterator = campaigns.forDateRange(dateRange, dateRangeEnd)
                 .withCondition("Status = ENABLED")
                 .withCondition("Conversions >= " + MIN_CONVERSIONS)
