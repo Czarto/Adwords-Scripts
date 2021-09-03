@@ -1,4 +1,4 @@
-// Version: 1.13.2 Muppet
+// Version: 1.14
 // Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js
 //
 // This Google Ads Script will incrementally change device bid adjustments
@@ -59,6 +59,7 @@ function main() {
     setDeviceBidModifier("LAST_30_DAYS");
     setDeviceBidModifier(LAST_90_DAYS(), TODAY());
     setDeviceBidModifier(LAST_YEAR(), TODAY());
+    setDeviceBidModifier("ALL_TIME");
 
     cleanup(); // Remove Labels
 }
