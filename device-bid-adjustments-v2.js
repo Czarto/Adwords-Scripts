@@ -1,4 +1,4 @@
-// Version: 1.14
+// Version: 2.0
 // Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js
 //
 // This Google Ads Script will incrementally change device bid adjustments
@@ -62,6 +62,9 @@ function main() {
     setDeviceBidModifier("ALL_TIME");
 
     cleanup(); // Remove Labels
+
+    //TODO: Allow to select campaigns by Campaign Name
+    //TODO: Remove 
 }
 
 
@@ -133,7 +136,7 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
     var STANDARD = 0;
     var SHOPPING = 1;
 
-    // Logger.log('Date Range from ' + dateRange + ' to ' + dateRangeEnd);
+    //Logger.log('Date Range from ' + dateRange + ' to ' + dateRangeEnd);
 
     for (i = 0; i < 2; i++) {
         //Logger.log('---  ' + (i==STANDARD ? 'Standard Campaigns' : 'Shopping Campaigns'));
@@ -145,9 +148,9 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
 
             var campaigns = (i==STANDARD ? AdsApp.campaigns() : AdsApp.shoppingCampaigns());
             var campaignIterator = campaigns.forDateRange(dateRange, dateRangeEnd)
-                .withCondition("Status = ENABLED")
-                .withCondition("Conversions > " + MIN_CONVERSIONS)
-                .withCondition("LabelNames CONTAINS_ANY ['" + labels[l] + "']")
+                .withCondition("campaign.status = ENABLED")
+                .withCondition("metrics.conversions > " + MIN_CONVERSIONS)
+                .withCondition("campaign.labels CONTAINS ANY ('" + labels[l] + "')")
                 .get();
 
             while (campaignIterator.hasNext()) {
