@@ -27,9 +27,9 @@ SOFTWARE.
 
 # The Scripts
 
-## Automated AdGroup Bids
-Set max CPC bids based on a sliding lookback window and based on a maximum cost of sales. Currently only sets bids at the adgroup level.
-- <a href="https://github.com/Czarto/Adwords-Scripts/blob/master/keyword-and-adgroup-bids.js">keyword-and-adgroup-bids.js</a>
+## Min ROAS (or Max Cost of Sales) Bidding (at Ad Group level)
+Set max CPC bids based on a sliding lookback window and based on a maximum cost of sales or min ROAS. Currently only sets bids at the adgroup level.
+- <a href="https://github.com/Czarto/Adwords-Scripts/blob/e1ff3ac49c46538e660c3688988dbb771fd29b02/min-roas-bidding.js">min-roas-bidding.js</a>
 
 ## Set Shopping ProductGroup bids to the AdGroup bid
 Set product group CPC bids to the CPC bid of the AdGroup.
