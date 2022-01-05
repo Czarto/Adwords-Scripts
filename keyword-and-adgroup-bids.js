@@ -1,10 +1,10 @@
-// Version: V2.3
+// Version: V3.0 New Script Experience
 
 /***********
 
 MIT License
 
-Copyright (c) 2016-2021 Alex Czartoryski
+Copyright (c) 2016-2022 Alex Czartoryski
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,18 +27,18 @@ SOFTWARE.
 **********/
 
 var AVG_CONV_VALUE = 40.0; // Average conversion value.
-var HIGH_COST_THRESHOLD = AVG_CONV_VALUE * 2; // How much is too much, before you lower your bids
+var HIGH_COST_THRESHOLD = AVG_CONV_VALUE; // How much is too much, before you lower your bids
 var USE_ACTUAL_CONVERSION_VALUE = true;
 
 // Performance Targets
-var MIN_ROAS = 2.5        // Minium Return on Ad Spend
+var MIN_ROAS = 4.0        // Minium Return on Ad Spend
 var MAX_COS = 1/MIN_ROAS; // Maximum Ad Spend as a % Cost of Sales.
 
-var MAX_BID_INCREASE = 0.1; // Bids will be increased by at most this amount.
-var MIN_BID = 0.01;         // The minimum CPC bid to decrease to
+var MAX_BID_INCREASE = 0.10; // Bids will be increased by at most this amount.
+var MIN_BID = 0.05;         // The minimum CPC bid to decrease to
 var MIN_CONVERSIONS = 5;    // Minimum number of conversions required to make a bid increase.
 
-var AGGRESSIVE_BIDDING = false;   // When set to true, bids will not be lowered unless the current CPA is over HIGHCOST_VALUE or MAX_COS
+var AGGRESSIVE_BIDDING = false;   // When set to true, bids will not be lowered unless the current CPA is over MAX_COSHIGHCOST_VALUE or MAX_COS
 
 // LABELS
 var LABEL_PROCESSING = 'Processing';
@@ -153,7 +153,7 @@ function setAdGroupsToMax(dateRange, dateRangeEnd) {
     //  - And who's avg position is worst than the StopLimit
     var adGroupIterator = adGroupTypes[i]
       .forDateRange(dateRange, dateRangeEnd)
-      .withCondition("Conversions >= " + MIN_CONVERSIONS)
+      .withCondition("Conversions > " + (MIN_CONVERSIONS-1))
       .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']")
       .withCondition("Clicks > 0");
     adGroupIterator = adGroupIterator.get();
