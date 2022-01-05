@@ -1,4 +1,4 @@
-// Version: 1.0.1
+// Version: 1.0.2
 
 /***********
 
@@ -61,7 +61,7 @@ function setProductGroupBidsToAdGroupBids() {
       var adGroup = adGroupIterator.next();
       var current_cpc = adGroup.bidding().getCpc();
 
-      Logger.log(adGroup.getCampaign().getName() + ":" + adGroup.getName() + ' CPC:' + current_cpc);
+      //Logger.log(adGroup.getCampaign().getName() + ":" + adGroup.getName() + ' CPC:' + current_cpc);
       
       var productGroupIterator = adGroup.productGroups().get()
       while (productGroupIterator.hasNext()) {
