@@ -49,7 +49,7 @@ var TAG_INCLUDE = '';
 var CAMPAIGN_INCLUDE = ''; // Only include Adgroups and keywords in Campaigns with this text string in the name
 var CAMPAIGN_EXCLUDE = ''; // Exclude Adgroups and keywords in Campaigns with this text string in the name
 
-
+// TODO: Only process enabled campaigns/ad groups
 
 
 function main() { 
