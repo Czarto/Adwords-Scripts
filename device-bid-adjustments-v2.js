@@ -1,4 +1,4 @@
-// Version: 2.0
+// Version: 2.1
 // Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js
 //
 // This Google Ads Script will incrementally change device bid adjustments
@@ -32,11 +32,8 @@ SOFTWARE.
 
 **********/
 
-var LABEL_PROCESSING = [
-    {name: "_processing_desktop", resourceName:""},
-    {name: "_processing_mobile", resourceName:""},
-    {name: "_processing_tablet", resourceName:""}
-]
+var LABEL_PROCESSING = "_processing_desktop";
+var LABEL_PROCESSING_RESOURCE = "";
 
 var BID_INCREMENT = 0.05;       // Value by which to adjust bids
 var MIN_CONVERSIONS = 10;       // Minimum conversions needed to adjust bids.
@@ -82,14 +79,11 @@ function initLabels() {
     var itemsToLabel = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
 
     for (i = 0; i < itemsToLabel.length; i++) {
-        var iterator = itemsToLabel[i].get();
+        var iterator = itemsToLabel[i].withCondition("Status = ENABLED").get();
 
         while (iterator.hasNext()) {
-            campaign = iterator.next();
-            campaign.applyLabel(LABEL_PROCESSING[0].name);
-            campaign.applyLabel(LABEL_PROCESSING[1].name);
-            campaign.applyLabel(LABEL_PROCESSING[2].name);
-        }
+            iterator.next().applyLabel(LABEL_PROCESSING);
+          }
     }
 }
 
@@ -99,22 +93,20 @@ function initLabels() {
 // Create the processing label if it does not exist
 //
 function checkLabelExists() {
-    Logger.log('CheckLabelExists()');
+    // Logger.log('CheckLabelExists()');
 
-    // Create missing labels
-    for (i = 0; i < LABEL_PROCESSING.length; i++) {
-        var labelIterator = AdsApp.labels().withCondition("Name = '" + LABEL_PROCESSING[i].name + "'").get();
-        if (!labelIterator.hasNext()) {
-            AdsApp.createLabel(LABEL_PROCESSING[i].name, "AdWords Scripts label used to process device bid adjustments");
-        }
+    var labelIterator = AdsApp.labels().withCondition("Name = '" + LABEL_PROCESSING + "'" ).get();
 
-        // Get label resource Ids (for beta experience script)
-        /* Beta
-        var labelIterator = AdsApp.labels().withCondition("Name = '" + LABEL_PROCESSING[i].name + "'").get();
-        if (labelIterator.hasNext()) {
-            LABEL_PROCESSING[i].resourceName = labelIterator.next().getResourceName();
-            Logger.log(LABEL_PROCESSING[i].resourceName);        } */
+    if( !labelIterator.hasNext()) {
+        AdsApp.createLabel(LABEL_PROCESSING, "AdWords Scripts label used to process bids")
     }
+
+    // Get label resource Ids (for beta experience script)
+    /* Beta
+    var labelIterator = AdsApp.labels().withCondition("Name = '" + LABEL_PROCESSING "'").get();
+    if (labelIterator.hasNext()) {
+        LABEL_PROCESSING_RESOURCE = labelIterator.next().getResourceName();
+        Logger.log(LABEL_PROCESSING_RESOURCE);        } */
 }
 
 
@@ -122,19 +114,16 @@ function checkLabelExists() {
 // Remove Processing label
 //
 function cleanup() {
-    Logger.log('Cleanup()');
+    //Logger.log('Cleanup()');
 
-    var cleanupList = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
+    var cleanupList = [AdsApp.adGroups(), AdsApp.shoppingAdGroups()];
 
     for (i = 0; i < cleanupList.length; i++) {
-        var iterator = cleanupList[i].get();
-
-        while (iterator.hasNext()) {
-            campaign = iterator.next();
-            campaign.removeLabel(LABEL_PROCESSING[0].name);
-            campaign.removeLabel(LABEL_PROCESSING[1].name);
-            campaign.removeLabel(LABEL_PROCESSING[2].name);
-        }
+      var iterator = cleanupList[i].withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
+  
+      while (iterator.hasNext()) {
+        iterator.next().removeLabel(LABEL_PROCESSING);
+      }
     }
 }
 
@@ -143,7 +132,7 @@ function cleanup() {
 // Set Device Bids
 //
 function setDeviceBidModifier(dateRange, dateRangeEnd) {
-    Logger.log('SetDeviceBidModifier');
+    // Logger.log('SetDeviceBidModifier');
     // TODO: Don't need to separate by destop/tablet/mobile. Just loop through them all and make adjustments.
     var STANDARD = 0;
     var SHOPPING = 1;
@@ -153,32 +142,32 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
     for (i = 0; i < 2; i++) {
         Logger.log('---  ' + (i==STANDARD ? 'Standard Campaigns' : 'Shopping Campaigns'));
 
-        for (l = 0; l < LABEL_PROCESSING.length; l++) {
-            Logger.log('     ' + LABEL_PROCESSING[l].resourceName);
-            // Logger.log("campaign.labels CONTAINS ANY ('" + LABEL_PROCESSING[l].resourceName + "')"); // Beta
-            Logger.log("campaign.labels CONTAINS ANY ('" + LABEL_PROCESSING[l].name + "')");
 
-            var campaigns = (i==STANDARD ? AdsApp.campaigns() : AdsApp.shoppingCampaigns());
-            var campaignIterator = campaigns.forDateRange(dateRange, dateRangeEnd)
-                //.withCondition("campaign.status = ENABLED") // Beta Scripts
-                //.withCondition("metrics.conversions > " + MIN_CONVERSIONS)
-                //.withCondition("campaign.labels CONTAINS ANY ('" + LABEL_PROCESSING[l].resourceName + "')") // Beta Scripts
-                .withCondition("Status = ENABLED") // Old Scripts
-                .withCondition("Conversions > " + MIN_CONVERSIONS)
-                .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING[l].name + "']") // Old Scripts
+        // Logger.log("campaign.labels CONTAINS ANY ('" + LABEL_PROCESSING[l].resourceName + "')"); // Beta
+        //Logger.log("campaign.labels CONTAINS ANY ('" + LABEL_PROCESSING + "')");
 
-                .get();
+        var campaigns = (i==STANDARD ? AdsApp.campaigns() : AdsApp.shoppingCampaigns());
+        var campaignIterator = campaigns.forDateRange(dateRange, dateRangeEnd)
+            //.withCondition("campaign.status = ENABLED") // Beta Scripts
+            //.withCondition("metrics.conversions > " + (MIN_CONVERSIONS-1))
+            //.withCondition("campaign.labels CONTAINS ANY ('" + LABEL_PROCESSING_RESOURCE + "')") // Beta Scripts
+            .withCondition("Status = ENABLED") // Old Scripts
+            .withCondition("Conversions > " + (MIN_CONVERSIONS-1))
+            .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']") // Old Scripts
 
-            while (campaignIterator.hasNext()) {
-                var campaign = campaignIterator.next();
-                var baseConversionRate = campaign.getStatsFor(dateRange, dateRangeEnd).getConversionRate();
-                var platforms = [campaign.targeting().platforms().desktop(),
-                    campaign.targeting().platforms().mobile(),
-                    campaign.targeting().platforms().tablet()
-                ];
+            .get();
 
-                Logger.log('    CAMPAIGN: ' + campaign.getName());
+        while (campaignIterator.hasNext()) {
+            var campaign = campaignIterator.next();
+            var baseConversionRate = campaign.getStatsFor(dateRange, dateRangeEnd).getConversionRate();
+            var platforms = [campaign.targeting().platforms().desktop(),
+                campaign.targeting().platforms().mobile(),
+                campaign.targeting().platforms().tablet()
+            ];
 
+            // Logger.log('    CAMPAIGN: ' + campaign.getName());
+
+            for (l = 0; l < platforms.length; l++) {
                 var targetIterator = platforms[l].get();
                 if (targetIterator.hasNext()) {
                     var target = targetIterator.next();
@@ -188,8 +177,9 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
                     var targetModifier = (conversionRate / baseConversionRate);
                     var currentModifier = target.getBidModifier();
 
-                    Logger.log('    Conversions: ' + conversions);
+                    // Logger.log('    Conversions: ' + conversions);
                     
+                    // TODO: If inusfficient conversions but high cost, adjust anyway
                     if (conversions >= MIN_CONVERSIONS) {
                         if (Math.abs(currentModifier - targetModifier) >= BID_INCREMENT) {
                             if (targetModifier > currentModifier) {
@@ -199,12 +189,12 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
                             }
                         }
 
-                        campaign.removeLabel(LABEL_PROCESSING[l].name);
-                        Logger.log('    Remove Label: ' + LABEL_PROCESSING[l].name);
+                        campaign.removeLabel(LABEL_PROCESSING);
+                        //Logger.log('    Remove Label: ' + LABEL_PROCESSING);
                     }
                 }
-
             }
+
         }
     }
 }
