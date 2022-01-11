@@ -36,8 +36,9 @@ var LABEL_PROCESSING = "_processing_device";
 var LABEL_PROCESSING_RESOURCE = "";
 
 var BID_INCREMENT = 0.05;       // Value by which to adjust bids
-var MIN_CONVERSIONS = 10;       // Minimum conversions needed to adjust bids.
+var MIN_CONVERSIONS = 5;       // Minimum conversions needed to adjust bids.
 var MAX_BID_ADJUSTMENT = 1.90;  // Do not increase adjustments above this value
+var MIN_BID_ADJUSTMENT = 0.10;  // Do not decrease adjustments below this value
 
 
 
@@ -158,21 +159,20 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
                     var stats = target.getStatsFor(dateRange, dateRangeEnd);
                     var conversions = stats.getConversions();
                     var conversionRate = stats.getConversionRate();
-                    var targetModifier = (conversionRate / baseConversionRate);
-                    var currentModifier = target.getBidModifier();
+                    var targetBidAdjustment = (conversions == 0 ? MIN_BID_ADJUSTMENT : (conversionRate / baseConversionRate));
+                    var currentBidAdjustment = target.getBidModifier();
 
-                    // TODO: If inusfficient conversions but high cost, adjust anyway
-                    if (conversions >= MIN_CONVERSIONS) {
-                        if (Math.abs(currentModifier - targetModifier) >= BID_INCREMENT) {
-                            if (targetModifier > currentModifier) {
-                                target.setBidModifier(Math.min(currentModifier + BID_INCREMENT, MAX_BID_ADJUSTMENT));
-                            } else {
-                                target.setBidModifier(Math.max(currentModifier - BID_INCREMENT, 0.1));
-                            }
+                    if (Math.abs(currentBidAdjustment - targetBidAdjustment) >= BID_INCREMENT) {
+                        if (targetBidAdjustment > currentBidAdjustment && conversions >= MIN_CONVERSIONS) {
+                            // Increase adjustment. Only increase bids if sufficient conversions
+                            target.setBidModifier(Math.min(currentBidAdjustment + BID_INCREMENT, MAX_BID_ADJUSTMENT));
+                        } else {
+                            // Decrease adjustment.
+                            target.setBidModifier(Math.max(currentBidAdjustment - BID_INCREMENT, MIN_BID_ADJUSTMENT));
                         }
-
-                        campaign.removeLabel(LABEL_PROCESSING);
                     }
+
+                    campaign.removeLabel(LABEL_PROCESSING);
                 }
             }
 
