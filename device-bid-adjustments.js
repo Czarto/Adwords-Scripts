@@ -1,4 +1,4 @@
-// Version: 1.14
+// Version: 2.1
 // Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js
 //
 // This Google Ads Script will incrementally change device bid adjustments
@@ -32,9 +32,8 @@ SOFTWARE.
 
 **********/
 
-var LABEL_PROCESSING_DESKTOP = "_processing_desktop";
-var LABEL_PROCESSING_MOBILE = "_processing_mobile";
-var LABEL_PROCESSING_TABLET = "_processing_tablet";
+var LABEL_PROCESSING = "_processing_device";
+var LABEL_PROCESSING_RESOURCE = "";
 
 var BID_INCREMENT = 0.05;       // Value by which to adjust bids
 var MIN_CONVERSIONS = 10;       // Minimum conversions needed to adjust bids.
@@ -77,13 +76,10 @@ function initLabels() {
     var itemsToLabel = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
 
     for (i = 0; i < itemsToLabel.length; i++) {
-        var iterator = itemsToLabel[i].get();
+        var iterator = itemsToLabel[i].withCondition("Status = ENABLED").get();
 
         while (iterator.hasNext()) {
-            campaign = iterator.next();
-            campaign.applyLabel(LABEL_PROCESSING_DESKTOP);
-            campaign.applyLabel(LABEL_PROCESSING_MOBILE);
-            campaign.applyLabel(LABEL_PROCESSING_TABLET);
+            iterator.next().applyLabel(LABEL_PROCESSING);
         }
     }
 }
@@ -94,15 +90,18 @@ function initLabels() {
 // Create the processing label if it does not exist
 //
 function checkLabelExists() {
+    var labelIterator = AdsApp.labels().withCondition("Name = '" + LABEL_PROCESSING + "'" ).get();
 
-    var labels = [LABEL_PROCESSING_DESKTOP, LABEL_PROCESSING_MOBILE, LABEL_PROCESSING_TABLET];
-
-    for (i = 0; i < labels.length; i++) {
-        var labelIterator = AdsApp.labels().withCondition("Name = '" + labels[i] + "'").get();
-        if (!labelIterator.hasNext()) {
-            AdsApp.createLabel(labels[i], "AdWords Scripts label used to process device bid adjustments");
-        }
+    if( !labelIterator.hasNext()) {
+        AdsApp.createLabel(LABEL_PROCESSING, "AdWords Scripts label used to process bids")
     }
+
+    // Get label resource Ids (for beta experience script)
+    /* Beta
+    var labelIterator = AdsApp.labels().withCondition("Name = '" + LABEL_PROCESSING "'").get();
+    if (labelIterator.hasNext()) {
+        LABEL_PROCESSING_RESOURCE = labelIterator.next().getResourceName();
+        Logger.log(LABEL_PROCESSING_RESOURCE);        } */
 }
 
 
@@ -110,17 +109,14 @@ function checkLabelExists() {
 // Remove Processing label
 //
 function cleanup() {
-    var cleanupList = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
+    var cleanupList = [AdsApp.adGroups(), AdsApp.shoppingAdGroups()];
 
     for (i = 0; i < cleanupList.length; i++) {
-        var iterator = cleanupList[i].get();
-
-        while (iterator.hasNext()) {
-            campaign = iterator.next();
-            campaign.removeLabel(LABEL_PROCESSING_DESKTOP);
-            campaign.removeLabel(LABEL_PROCESSING_MOBILE);
-            campaign.removeLabel(LABEL_PROCESSING_TABLET);
-        }
+      var iterator = cleanupList[i].withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
+  
+      while (iterator.hasNext()) {
+        iterator.next().removeLabel(LABEL_PROCESSING);
+      }
     }
 }
 
@@ -129,37 +125,33 @@ function cleanup() {
 // Set Device Bids
 //
 function setDeviceBidModifier(dateRange, dateRangeEnd) {
-
     var STANDARD = 0;
     var SHOPPING = 1;
 
-    // Logger.log('Date Range from ' + dateRange + ' to ' + dateRangeEnd);
+    Logger.log('Date Range from ' + dateRange + ' to ' + dateRangeEnd);
 
     for (i = 0; i < 2; i++) {
-        //Logger.log('---  ' + (i==STANDARD ? 'Standard Campaigns' : 'Shopping Campaigns'));
+        Logger.log('---  ' + (i==STANDARD ? 'Standard Campaigns' : 'Shopping Campaigns'));
 
-        var labels = [LABEL_PROCESSING_DESKTOP, LABEL_PROCESSING_MOBILE, LABEL_PROCESSING_TABLET];
+        var campaigns = (i==STANDARD ? AdsApp.campaigns() : AdsApp.shoppingCampaigns());
+        var campaignIterator = campaigns.forDateRange(dateRange, dateRangeEnd)
+            //.withCondition("campaign.status = ENABLED") // Beta Scripts
+            //.withCondition("metrics.conversions > " + (MIN_CONVERSIONS-1))
+            //.withCondition("campaign.labels CONTAINS ANY ('" + LABEL_PROCESSING_RESOURCE + "')") // Beta Scripts
+            .withCondition("Status = ENABLED") // Old Scripts
+            .withCondition("Conversions > " + (MIN_CONVERSIONS-1))
+            .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']") // Old Scripts
+            .get();
 
-        for (l = 0; l < labels.length; l++) {
-            //Logger.log('     ' + labels[l]);
+        while (campaignIterator.hasNext()) {
+            var campaign = campaignIterator.next();
+            var baseConversionRate = campaign.getStatsFor(dateRange, dateRangeEnd).getConversionRate();
+            var platforms = [campaign.targeting().platforms().desktop(),
+                campaign.targeting().platforms().mobile(),
+                campaign.targeting().platforms().tablet()
+            ];
 
-            var campaigns = (i==STANDARD ? AdsApp.campaigns() : AdsApp.shoppingCampaigns());
-            var campaignIterator = campaigns.forDateRange(dateRange, dateRangeEnd)
-                .withCondition("Status = ENABLED")
-                .withCondition("Conversions > " + MIN_CONVERSIONS)
-                .withCondition("LabelNames CONTAINS_ANY ['" + labels[l] + "']")
-                .get();
-
-            while (campaignIterator.hasNext()) {
-                var campaign = campaignIterator.next();
-                var baseConversionRate = campaign.getStatsFor(dateRange, dateRangeEnd).getConversionRate();
-                var platforms = [campaign.targeting().platforms().desktop(),
-                    campaign.targeting().platforms().mobile(),
-                    campaign.targeting().platforms().tablet()
-                ];
-
-                //Logger.log('    CAMPAIGN: ' + campaign.getName());
-
+            for (l = 0; l < platforms.length; l++) {
                 var targetIterator = platforms[l].get();
                 if (targetIterator.hasNext()) {
                     var target = targetIterator.next();
@@ -169,8 +161,7 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
                     var targetModifier = (conversionRate / baseConversionRate);
                     var currentModifier = target.getBidModifier();
 
-                    //Logger.log('    Conversions: ' + conversions);
-                    
+                    // TODO: If inusfficient conversions but high cost, adjust anyway
                     if (conversions >= MIN_CONVERSIONS) {
                         if (Math.abs(currentModifier - targetModifier) >= BID_INCREMENT) {
                             if (targetModifier > currentModifier) {
@@ -180,12 +171,11 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
                             }
                         }
 
-                        campaign.removeLabel(labels[l]);
-                        //Logger.log('    Remove Label: ' + labels[l]);
+                        campaign.removeLabel(LABEL_PROCESSING);
                     }
                 }
-
             }
+
         }
     }
 }
