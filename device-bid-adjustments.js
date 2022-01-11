@@ -1,4 +1,4 @@
-// Version: 2.1
+// Version: 2.2
 // Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js
 //
 // This Google Ads Script will incrementally change device bid adjustments
@@ -110,7 +110,7 @@ function checkLabelExists() {
 // Remove Processing label
 //
 function cleanup() {
-    var cleanupList = [AdsApp.adGroups(), AdsApp.shoppingAdGroups()];
+    var cleanupList = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
 
     for (i = 0; i < cleanupList.length; i++) {
       var iterator = cleanupList[i].withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
@@ -146,36 +146,64 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
 
         while (campaignIterator.hasNext()) {
             var campaign = campaignIterator.next();
-            var baseConversionRate = campaign.getStatsFor(dateRange, dateRangeEnd).getConversionRate();
-            var platforms = [campaign.targeting().platforms().desktop(),
-                campaign.targeting().platforms().mobile(),
-                campaign.targeting().platforms().tablet()
-            ];
 
-            for (l = 0; l < platforms.length; l++) {
-                var targetIterator = platforms[l].get();
-                if (targetIterator.hasNext()) {
-                    var target = targetIterator.next();
-                    var stats = target.getStatsFor(dateRange, dateRangeEnd);
-                    var conversions = stats.getConversions();
-                    var conversionRate = stats.getConversionRate();
-                    var targetBidAdjustment = (conversions == 0 ? MIN_BID_ADJUSTMENT : (conversionRate / baseConversionRate));
-                    var currentBidAdjustment = target.getBidModifier();
+            // Get click and revenue data for the entire campaign
+            var report = AdsApp.report(
+                "SELECT Clicks, ConversionValue " +
+                "FROM CAMPAIGN_PERFORMANCE_REPORT " +
+                "WHERE CampaignId = " + campaign.getId() + " " +
+                "DURING " + dateRangeToString(dateRange, dateRangeEnd));
+          
+            var row = report.rows().next();
+            var campaignClicks = row['Clicks'];
+            var campaignRevenue = row['ConversionValue'].replace(',','');
+            var campaignRevenuePerClick = (campaignClicks == 0 ? 0 : campaignRevenue/campaignClicks);
 
-                    if (Math.abs(currentBidAdjustment - targetBidAdjustment) >= BID_INCREMENT) {
-                        if (targetBidAdjustment > currentBidAdjustment && conversions >= MIN_CONVERSIONS) {
-                            // Increase adjustment. Only increase bids if sufficient conversions
-                            target.setBidModifier(Math.min(currentBidAdjustment + BID_INCREMENT, MAX_BID_ADJUSTMENT));
-                        } else {
-                            // Decrease adjustment.
-                            target.setBidModifier(Math.max(currentBidAdjustment - BID_INCREMENT, MIN_BID_ADJUSTMENT));
-                        }
+            if( campaignRevenuePerClick > 0 ) {
+                // Get clikc and revenue data for each device
+                var report = AdsApp.report(
+                    "SELECT Device, Clicks, Conversions, ConversionValue " +
+                    "FROM CAMPAIGN_PERFORMANCE_REPORT " +
+                    "WHERE CampaignId = " + campaign.getId() + " " +
+                    "DURING " + dateRangeToString(dateRange, dateRangeEnd));
+            
+                var reportRows = report.rows();
+            
+                while(reportRows.hasNext()) {
+                    var row = reportRows.next();
+                    var device = row['Device'];
+                    var clicks = row['Clicks'];
+                    var conversions = row['Conversions'];
+                    var revenue = row['ConversionValue'].replace(',','');
+                    var revenuePerClick = (clicks == 0 ? 0 : revenue/clicks);
+                    var deviceTarget;
+
+                    switch(device) {
+                        case "Computers": deviceTarget = campaign.targeting().platforms().desktop(); break;
+                        case "Mobile devices with full browsers": deviceTarget = campaign.targeting().platforms().mobile(); break;
+                        case "Tablets with full browsers": deviceTarget = campaign.targeting().platforms().tablet(); break;
+                        default: deviceTarget = null;
                     }
 
-                    campaign.removeLabel(LABEL_PROCESSING);
-                }
-            }
+                    if(deviceTarget) {
+                        var target = deviceTarget.get().next();
+                        var currentBidAdjustment = target.getBidModifier();
+                        var targetBidAdjustment = (revenuePerClick / campaignRevenuePerClick);
 
+                        if (Math.abs(currentBidAdjustment - targetBidAdjustment) >= BID_INCREMENT) {
+                            if (targetBidAdjustment > currentBidAdjustment && conversions >= MIN_CONVERSIONS) {
+                                // Increase adjustment. Only increase bids if sufficient conversions
+                                target.setBidModifier(Math.min(currentBidAdjustment + BID_INCREMENT, MAX_BID_ADJUSTMENT));
+                            } else {
+                                // Decrease adjustment.
+                                target.setBidModifier(Math.max(currentBidAdjustment - BID_INCREMENT, MIN_BID_ADJUSTMENT));
+                            }
+                        }
+                    }
+                }
+
+                campaign.removeLabel(LABEL_PROCESSING);
+            }
         }
     }
 }
@@ -218,3 +246,17 @@ function LAST_YEAR() {
     today.year = today.year - 1;
     return today;
 }
+
+
+//
+// Date range helper function - Reports
+// Returns a date range that will work in the DURING clause of the reporting query langugae
+//
+function dateRangeToString(dateRange, dateRangeEnd) {
+    if( dateRange == "LAST_7_DAYS" || dateRange == "LAST_14_DAYS" || dateRange == "LAST_30_DAYS" || dateRange == "ALL_TIME") {
+      return dateRange;
+    } else {
+     return dateRange.year.toString() + ("0" + dateRange.month).slice(-2) + ("0" + dateRange.day).slice(-2) + ","
+             + dateRangeEnd.year.toString() + ("0" + dateRangeEnd.month).slice(-2) + ("0" + dateRangeEnd.day).slice(-2);
+    }
+  }

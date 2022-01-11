@@ -201,21 +201,21 @@ function getAdGroupConversionValue(adGroup, dateRange, dateRangeEnd) {
       "WHERE AdGroupId = " + adGroup.getId() + " " +
       "DURING " + dateRangeToString(dateRange, dateRangeEnd));
 
-      var convVals = report.rows();
+  var convVals = report.rows();
 
-      if(convVals.hasNext()) {
-        var data = convVals.next();
-        var conversions = parseFloat(data.Conversions);
-        var conversionValue = parseFloat(data.ConversionValue.replace(',',''));
-        
-        if( USE_ACTUAL_CONVERSION_VALUE ) {
-          return conversionValue;
-        } else {
-          return conversions * AVG_CONV_VALUE;
-        }
-      } else {
-        return 0
-      }
+  if(convVals.hasNext()) {
+    var data = convVals.next();
+    var conversions = parseFloat(data.Conversions);
+    var conversionValue = parseFloat(data.ConversionValue.replace(',',''));
+    
+    if( USE_ACTUAL_CONVERSION_VALUE ) {
+      return conversionValue;
+    } else {
+      return conversions * AVG_CONV_VALUE;
+    }
+  } else {
+    return 0
+  }
 }
 
 
@@ -359,7 +359,7 @@ function LAST_90_DAYS() {
 // Returns a date range that will work in the DURING clause of the reporting query langugae
 //
 function dateRangeToString(dateRange, dateRangeEnd) {
-  if( dateRange == "LAST_7_DAYS" || dateRange == "LAST_14_DAYS" || dateRange == "LAST_30_DAYS") {
+  if( dateRange == "LAST_7_DAYS" || dateRange == "LAST_14_DAYS" || dateRange == "LAST_30_DAYS" || dateRange == "ALL_TIME") {
     return dateRange;
   } else {
    return dateRange.year.toString() + ("0" + dateRange.month).slice(-2) + ("0" + dateRange.day).slice(-2) + ","
