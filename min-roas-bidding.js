@@ -359,10 +359,12 @@ function LAST_90_DAYS() {
 // Returns a date range that will work in the DURING clause of the reporting query langugae
 //
 function dateRangeToString(dateRange, dateRangeEnd) {
-  if( dateRange == "LAST_7_DAYS" || dateRange == "LAST_14_DAYS" || dateRange == "LAST_30_DAYS" || dateRange == "ALL_TIME") {
+  if( dateRange == "LAST_7_DAYS" || dateRange == "LAST_14_DAYS" || dateRange == "LAST_30_DAYS" ) {
     return dateRange;
+  } else if (dateRange == "ALL_TIME" ) {
+    return "20000101," + TODAY().year.toString() + ("0" + TODAY().month).slice(-2) + ("0" + TODAY().day).slice(-2);
   } else {
-   return dateRange.year.toString() + ("0" + dateRange.month).slice(-2) + ("0" + dateRange.day).slice(-2) + ","
+    return dateRange.year.toString() + ("0" + dateRange.month).slice(-2) + ("0" + dateRange.day).slice(-2) + ","
            + dateRangeEnd.year.toString() + ("0" + dateRangeEnd.month).slice(-2) + ("0" + dateRangeEnd.day).slice(-2);
   }
 }
