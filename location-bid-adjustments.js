@@ -1,13 +1,16 @@
-// Version: Kunta
-
-// DEPRECATED
-// Please use "device-bid-adjustments" and "location-bid-adjustments" scripts instead
+// Version: 2.0
+// Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js
+//
+// This Google Ads Script will incrementally change location bid adjustments
+// based on conversion Value Per Click (VPC) using the Campaign's average VPC
+// as a baseline.
+//
 
 /***********
 
 MIT License
 
-Copyright (c) 2016-2019 Alex Czartoryski
+Copyright (c) 2016-2022 Alex Czartoryski
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,34 +32,83 @@ SOFTWARE.
 
 **********/
 
-var BID_INCREMENT = 0.05;
+var LABEL_PROCESSING = "_processing_location";
 var DEBUG = false;
-var TAG_IGNORE = '';
+var LABEL_IGNORE = '';
+
+var BID_INCREMENT = 0.05;       // Value by which to adjust bids
+var MIN_CONVERSIONS = 50;       // Minimum conversions needed to adjust bids.
+var HIGH_COST = 500;    // How much is too much
+var MAX_BID_ADJUSTMENT = 1.90;  // Do not increase adjustments above this value
+var MIN_BID_ADJUSTMENT = 0.10;  // Do not decrease adjustments below this value
 
 
 var LOCATION_IGNORE_COUNTRY = true; // Ignore location bid adjustments for Countries
 var LOCATION_IGNORE_STATE = false;  // Ignore location bid adjustments for States or Provinces
 
-var MIN_CONVERSIONS = 10;    // Set this to 1 to increase bids more aggressively
-var MIN_CONVERSIONS = 5;    // Set this to 1 to decrease bids more aggressively
-
-var HIGH_COST = 40;    // How much is too much
-
-var STOPLIMIT_POSITION = 1.3; // Do not increase bids at this position or better
-var MAX_BID_ADJUSTMENT = 1.50; // Do not increase adjustments above +50%
-
+var ADJUST_COUNTRY = false;
+var ADJUST_STATE = true;
+var ADJUST_CITY = true;
 
 
 function main() {
-    setLocationBids(LAST_YEAR(), TODAY());
-    setAdScheduleBids(LAST_YEAR(), TODAY());
+    initLabels(); // Create Labels
 
     setLocationBids("LAST_30_DAYS");
-    setAdScheduleBids("LAST_30_DAYS");
+    setLocationBids(LAST_YEAR(), TODAY());
+    setLocationBids("ALL_TIME");
 
-    setLocationBids("LAST_14_DAYS");
+    cleanup(); // Remove Labels
+}
 
-    setLocationBids("LAST_7_DAYS");
+
+//
+// Set the Processing label
+// This keeps track of which bid adjustments have already been processed
+// in the case where multiple time-lookback windows are being used
+//
+function initLabels() {
+    checkLabelExists();
+    cleanup();
+
+    var itemsToLabel = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
+
+    for (i = 0; i < itemsToLabel.length; i++) {
+        var iterator = itemsToLabel[i].withCondition("Status = ENABLED").get();
+
+        while (iterator.hasNext()) {
+            iterator.next().applyLabel(LABEL_PROCESSING);
+        }
+    }
+}
+
+
+
+//
+// Create the processing label if it does not exist
+//
+function checkLabelExists() {
+    var labelIterator = AdsApp.labels().withCondition("Name = '" + LABEL_PROCESSING + "'" ).get();
+
+    if( !labelIterator.hasNext()) {
+        AdsApp.createLabel(LABEL_PROCESSING, "AdWords Scripts label used to process bids")
+    }
+}
+
+
+//
+// Remove Processing label
+//
+function cleanup() {
+    var cleanupList = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
+
+    for (i = 0; i < cleanupList.length; i++) {
+      var iterator = cleanupList[i].withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
+  
+      while (iterator.hasNext()) {
+        iterator.next().removeLabel(LABEL_PROCESSING);
+      }
+    }
 }
 
 
@@ -101,26 +153,25 @@ function setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) 
         while (iterator.hasNext()) {
             var targetedLocation = iterator.next();
 
-            Logger.log('-----     ' + targetedLocation.getTargetType() + ':' + getName(targetedLocation));
+            Logger.log('-----     ' + targetedLocation.getTargetType() + ':' + targetedLocation.getName());
 
-            if (!(LOCATION_IGNORE_COUNTRY && targetedLocation.getTargetType() == "Country") &&
-                !(LOCATION_IGNORE_STATE && (targetedLocation.getTargetType() == "State" || targetedLocation.getTargetType() == "Province"))) {
+            if ((ADJUST_COUNTRY && targetedLocation.getTargetType() == "Country") ||
+                (ADJUST_STATE && (targetedLocation.getTargetType() == "State" || targetedLocation.getTargetType() == "Province" || targetedLocation.getTargetType() == "Territory")) ||
+                (ADJUST_CITY && targetedLocation.getTargetType() == "City")) {
                 var stats = targetedLocation.getStatsFor(dateRange, dateRangeEnd);
                 var conversions = stats.getConversions();
                 var cost = stats.getCost();
                 var currentBidModifier = targetedLocation.getBidModifier();
 
-
                 // At least 1 conversion
                 if (conversions > 0) {
-                    Logger.log('         ^ Convervions > 0');
+                    if (DEBUG) { Logger.log('         ^ Convervions > 0') };
                     if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
                         increaseBid(targetedLocation);
                     } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
                         decreaseBid(targetedLocation);
                     }
                 }
-
 
                 // Zero Conversions, Hight Cost. Drop bids.        
                 if (conversions == 0 && cost > HIGH_COST) {
@@ -130,82 +181,15 @@ function setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) 
             } else {
                 var message = '-----     ^ Ignoring ';
 
-                if (LOCATION_IGNORE_COUNTRY && targetedLocation.getTargetType() == "Country") {
+                if (ADJUST_COUNTRY == false && targetedLocation.getTargetType() == "Country") {
                     message = message + 'Countries';
-                } else if (LOCATION_IGNORE_STATE && (targetedLocation.getTargetType() == "State" || targetedLocation.getTargetType() == "Province")) {
+                } else if (ADJUST_STATE == false && (targetedLocation.getTargetType() == "State" || targetedLocation.getTargetType() == "Province"  || targetedLocation.getTargetType() == "Territory")) {
                     message = message + 'States and Provinces';
+                } else if (ADJUST_CITY == false && targetedLocation.getTargetType() == "City") {
+                    message = message + 'Cities';
                 }
-
+                
                 Logger.log(message);
-            }
-        }
-    }
-}
-
-
-
-
-function setAdScheduleBids(dateRange, dateRangeEnd) {
-
-    var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd).get();
-
-    Logger.log(' ')
-    Logger.log('### ADJUST AD SCHEDULE TARGETING BIDS ###');
-    Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
-
-    setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
-
-    // Adjust for Shopping campaigns
-    var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd, true).get();
-
-    Logger.log(' ')
-    Logger.log('Shopping Campaigns');
-    Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
-
-    setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
-}
-
-/*
-** Set schedule bid adjustments for all campaigns within the campaign iterator
-*/
-function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) {
-
-    while (campaignIterator.hasNext()) {
-        var campaign = campaignIterator.next();
-        var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getConversionRate();
-
-        Logger.log('-- CAMPAIGN: ' + campaign.getName());
-
-        var iterator = campaign.targeting().adSchedules().get();
-
-        Logger.log('----- Schedules found : ' + iterator.totalNumEntities());
-
-        while (iterator.hasNext()) {
-            var adSchedule = iterator.next();
-
-            Logger.log('-----     ' + getName(adSchedule));
-
-            var stats = adSchedule.getStatsFor(dateRange, dateRangeEnd);
-            var conversions = stats.getConversions();
-            var cost = stats.getCost();
-            var currentBidModifier = adSchedule.getBidModifier();
-
-
-
-            if (conversions > 0) {
-                Logger.log('         ^ Convervions > 0');
-                if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-                    increaseBid(adSchedule)
-                } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-                    decreaseBid(adSchedule);
-                }
-            }
-
-
-            // Zero Conversions, Hight Cost. Drop bids.
-            if (conversions == 0 && cost > HIGH_COST) {
-                Logger.log('        High Cost');
-                decreaseBid(adSchedule);
             }
         }
     }
@@ -218,12 +202,10 @@ function setAdScheduleBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd
 function isBidIncreaseNeeded(stats, currentBid, baselineConversionRate) {
     var conversions = stats.getConversions();
     var conversionRate = stats.getConversionRate();
-    var position = stats.getAveragePosition();
     var targetBid = (conversionRate / baselineConversionRate)
 
     if (isBidChangeSignificant(currentBid, targetBid)) {
         var isIncreaseNeeded = (targetBid > currentBid
-            && (position > STOPLIMIT_POSITION || position == 0)
             && currentBid < MAX_BID_ADJUSTMENT
             && conversions >= MIN_CONVERSIONS);
 
@@ -231,7 +213,6 @@ function isBidIncreaseNeeded(stats, currentBid, baselineConversionRate) {
             Logger.log('          ^ Is increase needed? ' + isIncreaseNeeded
                 + ':: targetBid:' + targetBid + ' currentBid:' + currentBid
                 + ':: conversionRate:' + conversionRate + ' baseline:' + baselineConversionRate
-                + ':: position:' + position + ' stoplimit:' + STOPLIMIT_POSITION
                 + ':: currentBid:' + currentBid + ' stoplimit:' + MAX_BID_ADJUSTMENT
                 + ':: conversions:' + conversions + ' threshold:' + MIN_CONVERSIONS);
         }
@@ -328,50 +309,68 @@ function getCampaignSelector(dateRange, dateRangeEnd, isShopping) {
 
     campaignSelector = campaignSelector
         .forDateRange(dateRange, dateRangeEnd)
-        .withCondition("Status = ENABLED");
+        .withCondition("Status = ENABLED")
+        .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']");
 
-    if (TAG_IGNORE.length > 0) {
+    if (LABEL_IGNORE.length > 0) {
         campaignSelector = campaignSelector
-            .withCondition("LabelNames CONTAINS_NONE ['" + TAG_IGNORE + "']");
+            .withCondition("LabelNames CONTAINS_NONE ['" + LABEL_IGNORE + "']");
     }
 
     return campaignSelector;
 }
 
-/*
-** Helper function for log formatting
-*/
-function getName(object) {
-    if (object.getEntityType() == 'AdSchedule') {
-        return formatSchedule(object);
-    } else {
-        return object.getName();
-    }
-}
-
-
 //
-// Date formatting for logging
+// Date range helper function
+// Returns today's date
 //
-function formatSchedule(schedule) {
-    function zeroPad(number) { return Utilities.formatString('%02d', number); }
-    return schedule.getDayOfWeek() + ', ' +
-        schedule.getStartHour() + ':' + zeroPad(schedule.getStartMinute()) +
-        ' to ' + schedule.getEndHour() + ':' + zeroPad(schedule.getEndMinute());
-}
-
 function TODAY() {
     var today = new Date();
     var dd = today.getDate();
-    var mm = today.getMonth() + 1; //January is 0!
+    var mm = today.getMonth() + 1; // 0-11
     var yyyy = today.getFullYear();
 
     return { year: yyyy, month: mm, day: dd };
 }
 
+//
+// Date range helper functions
+// Returns date 90 days ago
+//
+function LAST_90_DAYS() {
+    var date = new Date(); 
+    date.setDate(date.getDate() - 90);
+    
+    var dd = date.getDate();
+    var mm = date.getMonth()+1; // 0-11
+    var yyyy = date.getFullYear();
+  
+    return {year: yyyy, month: mm, day: dd};
+  }
+
+//
+// Date range helper functions
+// Returns date 1 year ago
+//
 function LAST_YEAR() {
     var today = TODAY();
 
     today.year = today.year - 1;
     return today;
 }
+
+
+//
+// Date range helper function - Reports
+// Returns a date range that will work in the DURING clause of the reporting query langugae
+//
+function dateRangeToString(dateRange, dateRangeEnd) {
+    if( dateRange == "LAST_7_DAYS" || dateRange == "LAST_14_DAYS" || dateRange == "LAST_30_DAYS" ) {
+      return dateRange;
+    } else if (dateRange == "ALL_TIME" ) {
+      return "20000101," + TODAY().year.toString() + ("0" + TODAY().month).slice(-2) + ("0" + TODAY().day).slice(-2);
+    } else {
+      return dateRange.year.toString() + ("0" + dateRange.month).slice(-2) + ("0" + dateRange.day).slice(-2) + ","
+             + dateRangeEnd.year.toString() + ("0" + dateRangeEnd.month).slice(-2) + ("0" + dateRangeEnd.day).slice(-2);
+    }
+  }

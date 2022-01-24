@@ -1,8 +1,8 @@
-// Version: 2.2
+// Version: 2.21
 // Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js
 //
 // This Google Ads Script will incrementally change device bid adjustments
-// based on conversion rates using the Campaign's average conversion rate
+// based on conversion Value Per Click (VPC) using the Campaign's average VPC
 // as a baseline.
 //
 
