@@ -40,6 +40,7 @@ var MIN_CONVERSIONS = 25;       // Minimum conversions needed to adjust bids.
 var HIGH_COST = 500;            // or Adjust bids anyway if cost is above HIGH_COST
 var MAX_BID_ADJUSTMENT = 2.00;  // Do not increase adjustments above this value
 var MIN_BID_ADJUSTMENT = 0.10;  // Do not decrease adjustments below this value
+// TODO: Instead of "high cost" use a "high CPA". If Conversions < Min Conversions, but CPA is high, then adjust. Otherwise leave alone.
 
 function main() {
     initLabels(); // Create Labels
