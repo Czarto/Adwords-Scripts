@@ -1,4 +1,4 @@
-// Version: 2.0
+// Version: 2.3.2
 // Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js
 //
 // This Google Ads Script will incrementally change location bid adjustments
@@ -33,30 +33,28 @@ SOFTWARE.
 **********/
 
 var LABEL_PROCESSING = "_processing_location";
-var DEBUG = false;
 var LABEL_IGNORE = '';
 
 var BID_INCREMENT = 0.05;       // Value by which to adjust bids
-var MIN_CONVERSIONS = 50;       // Minimum conversions needed to adjust bids.
-var HIGH_COST = 500;    // How much is too much
-var MAX_BID_ADJUSTMENT = 1.90;  // Do not increase adjustments above this value
+var MIN_CONVERSIONS = 25;       // Minimum conversions needed to adjust bids.
+var HIGH_COST = 500;            // or Adjust bids anyway if cost is above HIGH_COST
+var MAX_BID_ADJUSTMENT = 2.00;  // Do not increase adjustments above this value
 var MIN_BID_ADJUSTMENT = 0.10;  // Do not decrease adjustments below this value
-
-
-var LOCATION_IGNORE_COUNTRY = true; // Ignore location bid adjustments for Countries
-var LOCATION_IGNORE_STATE = false;  // Ignore location bid adjustments for States or Provinces
-
-var ADJUST_COUNTRY = false;
-var ADJUST_STATE = true;
-var ADJUST_CITY = true;
-
 
 function main() {
     initLabels(); // Create Labels
 
+    Logger.log('Set Location Bids: 30 days');
     setLocationBids("LAST_30_DAYS");
+
+    Logger.log('Set Location Bids: 90 days');
+    setLocationBids(LAST_90_DAYS(), TODAY());
+
+    Logger.log('Set Location Bids: Past Year');
     setLocationBids(LAST_YEAR(), TODAY());
-    setLocationBids("ALL_TIME");
+
+    //Logger.log('Set Location Bids: All Time');
+    //setLocationBids("ALL_TIME");
 
     cleanup(); // Remove Labels
 }
@@ -71,6 +69,7 @@ function initLabels() {
     checkLabelExists();
     cleanup();
 
+    Logger.log('Initializing labels...');
     var itemsToLabel = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
 
     for (i = 0; i < itemsToLabel.length; i++) {
@@ -100,6 +99,8 @@ function checkLabelExists() {
 // Remove Processing label
 //
 function cleanup() {
+    Logger.log('Cleaning up...');
+
     var cleanupList = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
 
     for (i = 0; i < cleanupList.length; i++) {
@@ -140,163 +141,65 @@ function setLocationBids(dateRange, dateRangeEnd) {
 //
 function setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) {
 
+    // TODO: Just do one loop, with the campaign performance report.
     while (campaignIterator.hasNext()) {
         var campaign = campaignIterator.next();
-        var campaignConvRate = campaign.getStatsFor(dateRange, dateRangeEnd).getConversionRate();
+        var campaignId = campaign.getId();
 
-        Logger.log('-- CAMPAIGN: ' + campaign.getName());
+        // Get click and revenue data for the entire campaign
+        var report = AdsApp.report(
+            "SELECT CampaignId, CampaignName, Clicks, ConversionValue " +
+            "FROM CAMPAIGN_PERFORMANCE_REPORT " +
+            "WHERE CampaignId = " + campaignId + " " +
+            " AND CampaignStatus = 'ENABLED' " + 
+            "DURING " + dateRangeToString(dateRange, dateRangeEnd));
+        
+        var row = report.rows().next();
+        var campaignId = row['CampaignId'];
+        var campaignName = row['CampaignName'];
+        var campaignClicks = row['Clicks'];
+        var campaignRevenue = row['ConversionValue'].replace(',','');
+        var campaignRevenuePerClick = (campaignClicks == 0 ? 0 : campaignRevenue/campaignClicks);
 
-        var iterator = campaign.targeting().targetedLocations().get();
 
-        Logger.log('----- Locations found : ' + iterator.totalNumEntities());
+        // Get click and revenue data for each geo location
+        var report = AdsApp.report(
+            "SELECT Id, Clicks, Conversions, ConversionValue, Cost, BidModifier " +
+            "FROM CAMPAIGN_LOCATION_TARGET_REPORT " +
+            "WHERE Id > 0 AND CampaignId = " + campaignId + " " +
+            "DURING " + dateRangeToString(dateRange, dateRangeEnd));        
+        var reportRows = report.rows();
 
-        while (iterator.hasNext()) {
-            var targetedLocation = iterator.next();
+        while(reportRows.hasNext()) {
+            var row = reportRows.next();
+            var locationId = [[campaignId, row["Id"]]];
+            var locationClicks = row['Clicks'];
+            var locationConverions = row['Conversions'];
+            var locationRevenue = row['ConversionValue'].replace(',','');
+            var locationCost = row['Cost'].replace(',','');
+            var locationBidModifier = (parseFloat(row['BidModifier']) / 100.0) + 1;
+            var locationRevenuePerClick = (locationClicks == 0 ? 0 : locationRevenue/locationClicks);
+ 
+            if (locationConverions >= MIN_CONVERSIONS || locationCost >= HIGH_COST ) {
+                var newBidModifier = (locationRevenuePerClick / campaignRevenuePerClick)
+                var isIncreaseNeeded = (newBidModifier > locationBidModifier && locationBidModifier < MAX_BID_ADJUSTMENT);
+                var isDecreaseNeeded = (newBidModifier < locationBidModifier && locationBidModifier > MIN_BID_ADJUSTMENT);
 
-            Logger.log('-----     ' + targetedLocation.getTargetType() + ':' + targetedLocation.getName());
-
-            if ((ADJUST_COUNTRY && targetedLocation.getTargetType() == "Country") ||
-                (ADJUST_STATE && (targetedLocation.getTargetType() == "State" || targetedLocation.getTargetType() == "Province" || targetedLocation.getTargetType() == "Territory")) ||
-                (ADJUST_CITY && targetedLocation.getTargetType() == "City")) {
-                var stats = targetedLocation.getStatsFor(dateRange, dateRangeEnd);
-                var conversions = stats.getConversions();
-                var cost = stats.getCost();
-                var currentBidModifier = targetedLocation.getBidModifier();
-
-                // At least 1 conversion
-                if (conversions > 0) {
-                    if (DEBUG) { Logger.log('         ^ Convervions > 0') };
-                    if (isBidIncreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-                        increaseBid(targetedLocation);
-                    } else if (isBidDecreaseNeeded(stats, currentBidModifier, campaignConvRate)) {
-                        decreaseBid(targetedLocation);
+                if( isIncreaseNeeded || isDecreaseNeeded ) {
+                    var locationIterator = campaign.targeting().targetedLocations().withIds(locationId).get()
+                    if( locationIterator.hasNext()) {
+                        var location = locationIterator.next();
+                        if( isIncreaseNeeded ) {
+                            newBidModifier = Math.min(locationBidModifier + BID_INCREMENT, MAX_BID_ADJUSTMENT)
+                            location.setBidModifier(newBidModifier);
+                        } else if( isDecreaseNeeded ) {
+                            newBidModifier = Math.max(locationBidModifier - BID_INCREMENT, MIN_BID_ADJUSTMENT);
+                            location.setBidModifier(newBidModifier);
+                        }
                     }
                 }
-
-                // Zero Conversions, Hight Cost. Drop bids.        
-                if (conversions == 0 && cost > HIGH_COST) {
-                    Logger.log('        High Cost');
-                    decreaseBid(targetedLocation);
-                }
-            } else {
-                var message = '-----     ^ Ignoring ';
-
-                if (ADJUST_COUNTRY == false && targetedLocation.getTargetType() == "Country") {
-                    message = message + 'Countries';
-                } else if (ADJUST_STATE == false && (targetedLocation.getTargetType() == "State" || targetedLocation.getTargetType() == "Province"  || targetedLocation.getTargetType() == "Territory")) {
-                    message = message + 'States and Provinces';
-                } else if (ADJUST_CITY == false && targetedLocation.getTargetType() == "City") {
-                    message = message + 'Cities';
-                }
-                
-                Logger.log(message);
             }
         }
-    }
-}
-
-
-//
-// Returns true if a bid increase is needed, false otherwise
-//
-function isBidIncreaseNeeded(stats, currentBid, baselineConversionRate) {
-    var conversions = stats.getConversions();
-    var conversionRate = stats.getConversionRate();
-    var targetBid = (conversionRate / baselineConversionRate)
-
-    if (isBidChangeSignificant(currentBid, targetBid)) {
-        var isIncreaseNeeded = (targetBid > currentBid
-            && currentBid < MAX_BID_ADJUSTMENT
-            && conversions >= MIN_CONVERSIONS);
-
-        if (DEBUG) {
-            Logger.log('          ^ Is increase needed? ' + isIncreaseNeeded
-                + ':: targetBid:' + targetBid + ' currentBid:' + currentBid
-                + ':: conversionRate:' + conversionRate + ' baseline:' + baselineConversionRate
-                + ':: currentBid:' + currentBid + ' stoplimit:' + MAX_BID_ADJUSTMENT
-                + ':: conversions:' + conversions + ' threshold:' + MIN_CONVERSIONS);
-        }
-
-        return (isIncreaseNeeded);
-    } else {
-        return false;
-    }
-}
-
-
-//
-// Returns true if a bid decrease is needed, false otherwise
-//
-function isBidDecreaseNeeded(stats, currentBid, baselineConversionRate) {
-    var conversions = stats.getConversions();
-    var conversionRate = stats.getConversionRate();
-    var targetBid = (conversionRate / baselineConversionRate)
-
-    if (isBidChangeSignificant(currentBid, targetBid)) {
-        var isDecreaseNeeded = (targetBid < currentBid && conversions >= MIN_CONVERSIONS);
-
-        if (DEBUG) {
-            Logger.log('          ^ Is decrease needed? ' + isDecreaseNeeded
-                + ':: targetBid:' + targetBid + ' currentBid:' + currentBid
-                + ':: conversionRate:' + conversionRate + ' baseline:' + baselineConversionRate
-                + ':: conversions:' + conversions + ' threshold:' + MIN_CONVERSIONS);
-        }
-
-        return (isDecreaseNeeded);
-    } else {
-        return false;
-    }
-}
-
-
-
-//
-// returns true if the difference between the two bids is >= BID_INCREMENT
-//
-function isBidChangeSignificant(bid1, bid2) {
-    var isSignificant = (Math.abs(bid1 - bid2) >= BID_INCREMENT);
-
-    if (DEBUG) {
-        Logger.log('          ^ Is bid change significant? BID1:' + bid1 + ' BID2:' + bid2 + ' :: ' + isSignificant);
-    }
-
-    return (isSignificant)
-}
-
-
-
-//
-// Increase bid adjustments by the default amount
-//
-function increaseBid(target) {
-    var newBidModifier = target.getBidModifier() + BID_INCREMENT;
-    target.setBidModifier(newBidModifier);
-
-    if (DEBUG) {
-        Logger.log('*** UPDATE *** ' + target.getEntityType() + ' : ' + getName(target)
-            + ', bid modifier: ' + newBidModifier
-            + ' increase bids');
-    }
-}
-
-
-
-//
-// Decrease bid adjustments by the default amount
-//
-function decreaseBid(target) {
-    var newBidModifier = target.getBidModifier() - BID_INCREMENT;
-    newBidModifier = Math.max(newBidModifier, 0.1); // Modifier cannot be less than 0.1 (-90%)
-
-    // TODO: Reset bid modifier to 0% (1.0) if the current conversion rate is below avg conversion rate
-    // var newBidModifier = Math.min(currentBidModifier - BID_INCREMENT, 1);
-
-    target.setBidModifier(newBidModifier);
-
-    if (DEBUG) {
-        Logger.log('*** UPDATE *** ' + target.getEntityType() + ' : ' + getName(target)
-            + ', bid modifier: ' + newBidModifier
-            + ' decrease bids');
     }
 }
 
