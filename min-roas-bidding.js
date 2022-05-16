@@ -1,4 +1,4 @@
-// Version: V3.0 New Script Experience
+// Version: V3.0.1 New Script Experience
 
 /***********
 
@@ -42,7 +42,7 @@ var AGGRESSIVE_BIDDING = false;   // When set to true, bids will not be lowered 
 
 // LABELS
 var LABEL_PROCESSING = 'Processing';
-var TAG_IGNORE = '';
+var TAG_IGNORE = 'Ignore';
 var TAG_INCLUDE = '';
 
 // CAMPAIGN FILTERS
