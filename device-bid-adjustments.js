@@ -1,4 +1,4 @@
-// Version: 2.21
+// Version: 2.4
 // Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js
 //
 // This Google Ads Script will incrementally change device bid adjustments
@@ -10,7 +10,7 @@
 
 MIT License
 
-Copyright (c) 2016-2021 Alex Czartoryski
+Copyright (c) 2016-2022 Alex Czartoryski
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,11 @@ SOFTWARE.
 
 **********/
 
-var LABEL_PROCESSING = "_processing_device";
+//
+// GLOBAL VARIABLES
+//
+
+var LABEL_PROCESSING = "_processing_devicebids";
 var LABEL_PROCESSING_RESOURCE = "";
 
 var BID_INCREMENT = 0.05;       // Value by which to adjust bids
@@ -41,18 +45,9 @@ var MAX_BID_ADJUSTMENT = 1.90;  // Do not increase adjustments above this value
 var MIN_BID_ADJUSTMENT = 0.10;  // Do not decrease adjustments below this value
 
 
-
 function main() {
-    initLabels(); // Create Labels
-
-    /*****
-      Device performance *should* theoretically not vary over time
-      (unless a site redesign has been performed) and so it makes
-      most sense to use a relatively long time period (1 year)
-      on which to base adjustments.
-
-      Shorter time periods included for reference, but commented out
-    *****/
+    checkLabelExists(); // Create Labels
+    initLabels(); // Add Labels to Campaigns
 
     //setDeviceBidModifier("LAST_7_DAYS");
     //setDeviceBidModifier("LAST_14_DAYS");
@@ -60,27 +55,50 @@ function main() {
     //setDeviceBidModifier(LAST_90_DAYS(), TODAY());
     setDeviceBidModifier(LAST_YEAR(), TODAY());
     setDeviceBidModifier("ALL_TIME");
+  
+    cleanupLabels(); // Remove Labels
+}
 
-    cleanup(); // Remove Labels
+
+//
+// Create the processing label if it does not exist
+//
+function checkLabelExists() {
+    Logger.log("\nfunction:checkLabelExists()");        
+    var label = getLabelByName(LABEL_PROCESSING);
+    if( !label ) {
+        AdsApp.createLabel(LABEL_PROCESSING);
+        label = getLabelByName(LABEL_PROCESSING);
+    }
+
+    // Get label resource Ids
+    if( label ) {
+        LABEL_PROCESSING_RESOURCE = label.getResourceName();
+        Logger.log(LABEL_PROCESSING_RESOURCE);        
+    } else {
+        Logger.log("ERROR: UNABLE TO GET LABEL RESOURCE STRING!");
+        throw new Error("ERROR: UNABLE TO GET LABEL RESOURCE STRING!");
+    }
 }
 
 
 //
 // Set the Processing label
-// This keeps track of which bid adjustments have already been processed
-// in the case where multiple time-lookback windows are being used
+// This keeps track of which campaigns have already been processed
+// in the case where multiple lookback windows are being used
 //
 function initLabels() {
-    checkLabelExists();
-    cleanup();
+    Logger.log("\nfunction:initLabels()");        
 
-    var itemsToLabel = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
+    var campaignTypes = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
 
-    for (i = 0; i < itemsToLabel.length; i++) {
-        var iterator = itemsToLabel[i].withCondition("Status = ENABLED").get();
+    for (i = 0; i < campaignTypes.length; i++) {
+        var iterator = campaignTypes[i].withCondition("campaign.status = ENABLED").get();
+        Logger.log("Total campaigns found: " + (i == 0 ? "Search Campaigns" : "Shopping Campaigns") + ":" + iterator.totalNumEntities());
 
         while (iterator.hasNext()) {
-            iterator.next().applyLabel(LABEL_PROCESSING);
+            var campaign = iterator.next();
+            campaign.applyLabel(LABEL_PROCESSING);
         }
     }
 }
@@ -88,36 +106,23 @@ function initLabels() {
 
 
 //
-// Create the processing label if it does not exist
-//
-function checkLabelExists() {
-    var labelIterator = AdsApp.labels().withCondition("Name = '" + LABEL_PROCESSING + "'" ).get();
-
-    if( !labelIterator.hasNext()) {
-        AdsApp.createLabel(LABEL_PROCESSING, "AdWords Scripts label used to process bids")
-    }
-
-    // Get label resource Ids (for beta experience script)
-    /* Beta
-    var labelIterator = AdsApp.labels().withCondition("Name = '" + LABEL_PROCESSING "'").get();
-    if (labelIterator.hasNext()) {
-        LABEL_PROCESSING_RESOURCE = labelIterator.next().getResourceName();
-        Logger.log(LABEL_PROCESSING_RESOURCE);        } */
-}
-
-
-//
 // Remove Processing label
 //
-function cleanup() {
-    var cleanupList = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
+function cleanupLabels() {
+    Logger.log("\nfunction:cleanupLabels()");        
 
-    for (i = 0; i < cleanupList.length; i++) {
-      var iterator = cleanupList[i].withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
-  
-      while (iterator.hasNext()) {
-        iterator.next().removeLabel(LABEL_PROCESSING);
-      }
+    // Cleanup labels
+    var campaignTypes = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
+    for (i = 0; i < campaignTypes.length; i++) {
+        var iterator = campaignTypes[i]
+            .withCondition("campaign.status = ENABLED")
+            .withCondition("campaign.labels CONTAINS ANY ('" + LABEL_PROCESSING_RESOURCE + "')")
+            .get();
+
+        while (iterator.hasNext()) {
+            var campaign = iterator.next();
+            campaign.removeLabel(LABEL_PROCESSING);
+        }
     }
 }
 
@@ -126,86 +131,132 @@ function cleanup() {
 // Set Device Bids
 //
 function setDeviceBidModifier(dateRange, dateRangeEnd) {
-    var STANDARD = 0;
-    var SHOPPING = 1;
+    Logger.log(`\nfunction:setDeviceBidModifier(${dateRange},${dateRangeEnd})`);
 
-    Logger.log('Date Range from ' + dateRange + ' to ' + dateRangeEnd);
+    var reportQueryTypes = ["campaign"];//, "shopping_performance_view"];
+    for (i = 0; i < reportQueryTypes.length; i++) {
 
-    for (i = 0; i < 2; i++) {
-        Logger.log('---  ' + (i==STANDARD ? 'Standard Campaigns' : 'Shopping Campaigns'));
+        let campaignReportQuery = "SELECT " +
+            "campaign.id, " +
+            "metrics.conversions_value, " +
+            "metrics.clicks " +
+            "FROM " + reportQueryTypes[i] + " " +
+            "WHERE campaign.status = 'ENABLED' " + 
+            "AND metrics.conversions > " + (MIN_CONVERSIONS-1) + " " +
+            "AND campaign.labels CONTAINS ANY ('" + LABEL_PROCESSING_RESOURCE + "') " +
+            "AND segments.date " + formatDateQuery(dateRange, dateRangeEnd)
 
-        var campaigns = (i==STANDARD ? AdsApp.campaigns() : AdsApp.shoppingCampaigns());
-        var campaignIterator = campaigns.forDateRange(dateRange, dateRangeEnd)
-            //.withCondition("campaign.status = ENABLED") // Beta Scripts
-            //.withCondition("metrics.conversions > " + (MIN_CONVERSIONS-1))
-            //.withCondition("campaign.labels CONTAINS ANY ('" + LABEL_PROCESSING_RESOURCE + "')") // Beta Scripts
-            .withCondition("Status = ENABLED") // Old Scripts
-            .withCondition("Conversions > " + (MIN_CONVERSIONS-1))
-            .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']") // Old Scripts
-            .get();
+        Logger.log("\n\nGetting campaigns...")
+        Logger.log(campaignReportQuery);
+        let campaignReport = AdsApp.search(campaignReportQuery);
+        Logger.log("Total campaigns found:" + campaignReport.totalNumEntities());
 
-        while (campaignIterator.hasNext()) {
-            var campaign = campaignIterator.next();
+        while (campaignReport.hasNext()) {
+            let campaignData = campaignReport.next();
 
-            // Get click and revenue data for the entire campaign
-            var report = AdsApp.report(
-                "SELECT Clicks, ConversionValue " +
-                "FROM CAMPAIGN_PERFORMANCE_REPORT " +
-                "WHERE CampaignId = " + campaign.getId() + " " +
-                "DURING " + dateRangeToString(dateRange, dateRangeEnd));
-          
-            var row = report.rows().next();
-            var campaignClicks = row['Clicks'];
-            var campaignRevenue = row['ConversionValue'].replace(',','');
-            var campaignRevenuePerClick = (campaignClicks == 0 ? 0 : campaignRevenue/campaignClicks);
+            let campaignId = campaignData.campaign.id;
+            let campaignClicks = campaignData.metrics.clicks;
+            let campaignRevenue = campaignData.metrics.conversionsValue;
+            let campaignRevenuePerClick = (campaignClicks == 0 ? 0 : campaignRevenue/campaignClicks);
+ 
+            var campaign = getCampaignById(campaignId);
 
             if( campaignRevenuePerClick > 0 ) {
-                // Get clikc and revenue data for each device
-                var report = AdsApp.report(
-                    "SELECT Device, Clicks, Conversions, ConversionValue " +
-                    "FROM CAMPAIGN_PERFORMANCE_REPORT " +
-                    "WHERE CampaignId = " + campaign.getId() + " " +
-                    "DURING " + dateRangeToString(dateRange, dateRangeEnd));
-            
-                var reportRows = report.rows();
-            
-                while(reportRows.hasNext()) {
-                    var row = reportRows.next();
-                    var device = row['Device'];
-                    var clicks = row['Clicks'];
-                    var conversions = row['Conversions'];
-                    var revenue = row['ConversionValue'].replace(',','');
-                    var revenuePerClick = (clicks == 0 ? 0 : revenue/clicks);
-                    var deviceTarget;
+                // Get click and revenue data for each device
+                let deviceReportQuery = "SELECT " +
+                    "segments.device, " +
+                    "metrics.clicks, " +
+                    "metrics.conversions_value " +
+                    "FROM " + reportQueryTypes[i] + " " +
+                    "WHERE campaign.id = " + campaignId + " " +
+                    "AND segments.date " + formatDateQuery(dateRange, dateRangeEnd)
+    
+                Logger.log("\nGetting stats for each device...")
+                Logger.log(deviceReportQuery);
+                let deviceReportRows = AdsApp.search(deviceReportQuery);
+                Logger.log("Total devices found:" + deviceReportRows.totalNumEntities());
 
+                while(deviceReportRows.hasNext()) {
+                    let deviceData = deviceReportRows.next();
+                    let device = deviceData.segments.device;
+                    let clicks = deviceData.metrics.clicks;
+                    let revenue = deviceData.metrics.conversionsValue;
+                    let deviceRevenuePerClick = (clicks == 0 ? 0 : revenue/clicks);
+                    let deviceTarget;
+
+                    Logger.log(device);
                     switch(device) {
-                        case "Computers": deviceTarget = campaign.targeting().platforms().desktop(); break;
-                        case "Mobile devices with full browsers": deviceTarget = campaign.targeting().platforms().mobile(); break;
-                        case "Tablets with full browsers": deviceTarget = campaign.targeting().platforms().tablet(); break;
+                        case "DESKTOP": deviceTarget = campaign.targeting().platforms().desktop(); break;
+                        case "MOBILE": deviceTarget = campaign.targeting().platforms().mobile(); break;
+                        case "TABLET": deviceTarget = campaign.targeting().platforms().tablet(); break;
                         default: deviceTarget = null;
                     }
 
                     if(deviceTarget) {
-                        var target = deviceTarget.get().next();
-                        var currentBidAdjustment = target.getBidModifier();
-                        var targetBidAdjustment = (revenuePerClick / campaignRevenuePerClick);
+                        Logger.log("DeviceTarget valid");
+                        let deviceIterator = deviceTarget.get();
+                        if( deviceIterator.hasNext()) { 
+                            Logger.log("DeviceIterator has next");
+                            let target = deviceIterator.next();
+                            let currentBidAdjustment = target.getBidModifier();
+                            let targetBidAdjustment = (deviceRevenuePerClick / campaignRevenuePerClick);
 
-                        if (Math.abs(currentBidAdjustment - targetBidAdjustment) >= BID_INCREMENT) {
-                            if (targetBidAdjustment > currentBidAdjustment && conversions >= MIN_CONVERSIONS) {
-                                // Increase adjustment. Only increase bids if sufficient conversions
-                                target.setBidModifier(Math.min(currentBidAdjustment + BID_INCREMENT, MAX_BID_ADJUSTMENT));
-                            } else {
-                                // Decrease adjustment.
-                                target.setBidModifier(Math.max(currentBidAdjustment - BID_INCREMENT, MIN_BID_ADJUSTMENT));
+                            Logger.log("Current Bid Adjustment = " +currentBidAdjustment + "; Target bid adjustment = " + targetBidAdjustment);
+
+                            if (Math.abs(currentBidAdjustment - targetBidAdjustment) >= BID_INCREMENT) {
+                                if (targetBidAdjustment > currentBidAdjustment) {
+                                    // Increase
+                                    target.setBidModifier(Math.min(currentBidAdjustment + BID_INCREMENT, MAX_BID_ADJUSTMENT));
+                                } else {
+                                    // Decrease
+                                    target.setBidModifier(Math.max(currentBidAdjustment - BID_INCREMENT, MIN_BID_ADJUSTMENT));
+                                }
                             }
                         }
                     }
                 }
-
-                campaign.removeLabel(LABEL_PROCESSING);
             }
+
+            campaign.removeLabel(LABEL_PROCESSING);
         }
     }
+}
+
+//
+// Try loading a standard or shopping campaign by Id
+function getCampaignById(campaignId) {
+    let campaignIterator = AdsApp.campaigns().withIds([campaignId]).get();
+
+    var campaign;
+    if (campaignIterator.hasNext()) {
+        campaign = campaignIterator.next();
+    } else {
+        // Try loading shopping campaign
+        campaignIterator = AdsApp.shoppingCampaigns().withIds([campaignId]).get();
+
+        if (campaignIterator.hasNext()) {
+            campaign = campaignIterator.next();
+        } else {
+            // Couldn't load standard nor shopping campaign. Error.
+            Logger.log("ERROR: UNABLE TO GET CAMPAIGN ID " + campaignId);
+            throw new Error("ERROR: UNABLE TO GET CAMPAIGN ID " + campaignId);
+        }
+    }
+    return campaign;
+}
+
+
+//
+// Format date as a string
+//
+function dateTo_yyyy_mm_yy(date) {
+    if(!date) { date = new Date(); }
+
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2,'0');
+    const dd = String(date.getDate()).padStart(2,'0');
+
+    return `${yyyy}-${mm}-${dd}`
 }
 
 //
@@ -213,12 +264,8 @@ function setDeviceBidModifier(dateRange, dateRangeEnd) {
 // Returns today's date
 //
 function TODAY() {
-    var today = new Date();
-    var dd = today.getDate();
-    var mm = today.getMonth() + 1; // 0-11
-    var yyyy = today.getFullYear();
-
-    return { year: yyyy, month: mm, day: dd };
+    const date = new Date();
+    return dateTo_yyyy_mm_yy(date);
 }
 
 //
@@ -228,12 +275,7 @@ function TODAY() {
 function LAST_90_DAYS() {
     var date = new Date(); 
     date.setDate(date.getDate() - 90);
-    
-    var dd = date.getDate();
-    var mm = date.getMonth()+1; // 0-11
-    var yyyy = date.getFullYear();
-  
-    return {year: yyyy, month: mm, day: dd};
+    return dateTo_yyyy_mm_yy(date);
   }
 
 //
@@ -241,24 +283,39 @@ function LAST_90_DAYS() {
 // Returns date 1 year ago
 //
 function LAST_YEAR() {
-    var today = TODAY();
+    var date = new Date(); 
+    date.setDate(date.getDate() - 365);
+    return dateTo_yyyy_mm_yy(date);
+}
 
-    today.year = today.year - 1;
-    return today;
+//
+// Return a properly formated Date contraint for the query
+//
+function formatDateQuery(dateRangeStart, dateRangeEnd) {
+    if (dateRangeStart == "LAST_7_DAYS" || dateRangeStart == "LAST_14_DAYS" || dateRangeStart == "LAST_30_DAYS") {
+        return dateRangeStart;
+    } else if (dateRangeStart == "ALL_TIME") {
+        return " BETWEEN '2000-01-01' AND '" + TODAY() + "' ";
+    } else {
+        return " BETWEEN '" + dateRangeStart + "' AND '" + dateRangeEnd + "' ";
+    }
 }
 
 
 //
-// Date range helper function - Reports
-// Returns a date range that will work in the DURING clause of the reporting query langugae
+// Get label by name
 //
-function dateRangeToString(dateRange, dateRangeEnd) {
-    if( dateRange == "LAST_7_DAYS" || dateRange == "LAST_14_DAYS" || dateRange == "LAST_30_DAYS" ) {
-      return dateRange;
-    } else if (dateRange == "ALL_TIME" ) {
-      return "20000101," + TODAY().year.toString() + ("0" + TODAY().month).slice(-2) + ("0" + TODAY().day).slice(-2);
-    } else {
-      return dateRange.year.toString() + ("0" + dateRange.month).slice(-2) + ("0" + dateRange.day).slice(-2) + ","
-             + dateRangeEnd.year.toString() + ("0" + dateRangeEnd.month).slice(-2) + ("0" + dateRangeEnd.day).slice(-2);
+function getLabelByName(name) {
+    const labelIterator = AdsApp.labels()
+        .withCondition(`label.name = "${name}"`)
+        .get();
+
+    if (labelIterator.hasNext()) {
+        const label = labelIterator.next();
+        console.log(`Found Label: ${label.getName()}`);
+        return label;
     }
-  }
+
+    console.log(`Label not found: ${name}`);
+    return null;
+}

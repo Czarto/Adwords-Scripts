@@ -78,7 +78,7 @@ function main() {
   setAdGroupsToMax(LAST_YEAR(), TODAY());
   decreaseHighCostAdGroups(LAST_YEAR(), TODAY());
 
-  cleanup();
+  cleanupLabels();
 }
 
 
@@ -124,7 +124,7 @@ function checkLabelExists() {
 //
 // Remove Processing label
 //
-function cleanup() {
+function cleanupLabels() {
   var cleanupList = [AdsApp.adGroups(), AdsApp.shoppingAdGroups()];
 
   for (i = 0; i < cleanupList.length; i++) {
