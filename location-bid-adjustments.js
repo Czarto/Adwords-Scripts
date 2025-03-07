@@ -1,4 +1,4 @@
-// Version: 2.3.2
+// Version: 4.0.0
 // Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/device-bid-adjustments.js
 //
 // This Google Ads Script will incrementally change location bid adjustments
@@ -32,34 +32,44 @@ SOFTWARE.
 
 **********/
 
-var LABEL_PROCESSING = "_processing_location";
-var LABEL_IGNORE = '';
+// Configuration
+const CONFIG = {
+    // Labels
+    LABEL_PROCESSING: '_processing_location',
+    LABEL_IGNORE: '',
 
-var BID_INCREMENT = 0.05;       // Value by which to adjust bids
-var MIN_CONVERSIONS = 25;       // Minimum conversions needed to adjust bids.
-var HIGH_COST = 500;            // or Adjust bids anyway if cost is above HIGH_COST
-var MAX_BID_ADJUSTMENT = 2.00;  // Do not increase adjustments above this value
-var MIN_BID_ADJUSTMENT = 0.10;  // Do not decrease adjustments below this value
-// TODO: Instead of "high cost" use a "high CPA". If Conversions < Min Conversions, but CPA is high, then adjust. Otherwise leave alone.
+    // Bid adjustment settings
+    BID_INCREMENT: 0.05,          // Value by which to adjust bids
+    MIN_CONVERSIONS: 25,          // Minimum conversions needed to adjust bids
+    HIGH_COST: 500,               // Adjust bids if cost is above this value
+    MAX_BID_ADJUSTMENT: 2.00,     // Maximum bid adjustment multiplier
+    MIN_BID_ADJUSTMENT: 0.10,     // Minimum bid adjustment multiplier
+
+    // TODO: Instead of "high cost" use a "high CPA". If Conversions < Min Conversions, but CPA is high, then adjust. Otherwise leave alone.
+
+    // Date ranges to process
+    DATE_RANGES: [
+        { name: '30 Days', range: 'LAST_30_DAYS' },
+        { name: '90 Days', range: 'LAST_90_DAYS' },
+        { name: 'Past Year', range: 'LAST_YEAR' }
+    ]
+};
 
 function main() {
-    initLabels(); // Create Labels
+    try {
+        initLabels();
 
-    Logger.log('Set Location Bids: 30 days');
-    setLocationBids("LAST_30_DAYS");
+        CONFIG.DATE_RANGES.forEach(({ name, range }) => {
+            Logger.log(`\nSet Location Bids: ${name}`);
+            setLocationBids(range);
+        });
 
-    Logger.log('Set Location Bids: 90 days');
-    setLocationBids(LAST_90_DAYS(), TODAY());
-
-    Logger.log('Set Location Bids: Past Year');
-    setLocationBids(LAST_YEAR(), TODAY());
-
-    //Logger.log('Set Location Bids: All Time');
-    //setLocationBids("ALL_TIME");
-
-    cleanup(); // Remove Labels
+        cleanup();
+    } catch (error) {
+        Logger.log(`Error in main: ${error.message}`);
+        throw error;
+    }
 }
-
 
 //
 // Set the Processing label
@@ -71,154 +81,196 @@ function initLabels() {
     cleanup();
 
     Logger.log('Initializing labels...');
-    var itemsToLabel = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
-
-    for (i = 0; i < itemsToLabel.length; i++) {
-        var iterator = itemsToLabel[i].withCondition("Status = ENABLED").get();
+    [AdsApp.campaigns(), AdsApp.shoppingCampaigns()].forEach(selector => {
+        const iterator = selector
+            .withCondition("Status = ENABLED")
+            .get();
 
         while (iterator.hasNext()) {
-            iterator.next().applyLabel(LABEL_PROCESSING);
+            iterator.next().applyLabel(CONFIG.LABEL_PROCESSING);
         }
-    }
+    });
 }
-
-
 
 //
 // Create the processing label if it does not exist
 //
 function checkLabelExists() {
-    var labelIterator = AdsApp.labels().withCondition("Name = '" + LABEL_PROCESSING + "'" ).get();
-
-    if( !labelIterator.hasNext()) {
-        AdsApp.createLabel(LABEL_PROCESSING, "AdWords Scripts label used to process bids")
+    if (!AdsApp.labels()
+        .withCondition(`Name = '${CONFIG.LABEL_PROCESSING}'`)
+        .get().hasNext()) {
+        AdsApp.createLabel(CONFIG.LABEL_PROCESSING, "Google Ads Scripts label used to process bids");
     }
 }
-
 
 //
 // Remove Processing label
 //
 function cleanup() {
     Logger.log('Cleaning up...');
+    [AdsApp.campaigns(), AdsApp.shoppingAdGroups()].forEach(selector => {
+        const iterator = selector
+            .withCondition(`LabelNames CONTAINS_ANY ['${CONFIG.LABEL_PROCESSING}']`)
+            .get();
 
-    var cleanupList = [AdsApp.campaigns(), AdsApp.shoppingCampaigns()];
-
-    for (i = 0; i < cleanupList.length; i++) {
-      var iterator = cleanupList[i].withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']").get();
-  
-      while (iterator.hasNext()) {
-        iterator.next().removeLabel(LABEL_PROCESSING);
-      }
-    }
+        while (iterator.hasNext()) {
+            iterator.next().removeLabel(CONFIG.LABEL_PROCESSING);
+        }
+    });
 }
 
+function setLocationBids(dateRange) {
+    const campaignTypes = [
+        { selector: AdsApp.campaigns(), name: 'Non-Shopping Campaigns' },
+        { selector: AdsApp.shoppingCampaigns(), name: 'Shopping Campaigns' }
+    ];
 
-function setLocationBids(dateRange, dateRangeEnd) {
-
-    // Adjust for normal campaigns
-    var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd).get();
-
-    Logger.log(' ')
-    Logger.log('### ADJUST LOCATION TARGETING BIDS ###');
-    Logger.log('Non-Shopping Campaigns');
-    Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
-
-    setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
-
-    // Adjust for Shopping campaigns
-    var campaignIterator = getCampaignSelector(dateRange, dateRangeEnd, true).get();
-
-    Logger.log(' ')
-    Logger.log('Shopping Campaigns');
-    Logger.log('Total Campaigns found : ' + campaignIterator.totalNumEntities());
-
-    setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd);
+    campaignTypes.forEach(({ selector, name }) => {
+        Logger.log('\n### ADJUST LOCATION TARGETING BIDS ###');
+        Logger.log(name);
+        
+        const campaignIterator = getCampaignSelector(selector, dateRange).get();
+        Logger.log(`Total Campaigns found: ${campaignIterator.totalNumEntities()}`);
+        
+        setLocationBidsForCampaigns(campaignIterator, dateRange);
+    });
 }
-
 
 //
 // Sets the location bids for all the campaigns within the CampaignIterator.
 //
-function setLocationBidsForCampaigns(campaignIterator, dateRange, dateRangeEnd) {
-
-    // TODO: Just do one loop, with the campaign performance report.
+function setLocationBidsForCampaigns(campaignIterator, dateRange) {
     while (campaignIterator.hasNext()) {
-        var campaign = campaignIterator.next();
-        var campaignId = campaign.getId();
+        let campaign = campaignIterator.next();
+        let campaignId = campaign.getId();
 
-        // Get click and revenue data for the entire campaign
-        var report = AdsApp.report(
-            "SELECT CampaignId, CampaignName, Clicks, ConversionValue " +
-            "FROM CAMPAIGN_PERFORMANCE_REPORT " +
-            "WHERE CampaignId = " + campaignId + " " +
-            " AND CampaignStatus = 'ENABLED' " + 
-            "DURING " + dateRangeToString(dateRange, dateRangeEnd));
-        
-        var row = report.rows().next();
-        var campaignId = row['CampaignId'];
-        var campaignName = row['CampaignName'];
-        var campaignClicks = row['Clicks'];
-        var campaignRevenue = row['ConversionValue'].replace(',','');
-        var campaignRevenuePerClick = (campaignClicks == 0 ? 0 : campaignRevenue/campaignClicks);
+        try {
+            Logger.log(`\nProcessing campaign: ${campaign.getName()} (${campaignId})`);
 
-
-        // Get click and revenue data for each geo location
-        var report = AdsApp.report(
-            "SELECT Id, Clicks, Conversions, ConversionValue, Cost, BidModifier " +
-            "FROM CAMPAIGN_LOCATION_TARGET_REPORT " +
-            "WHERE Id > 0 AND CampaignId = " + campaignId + " " +
-            "DURING " + dateRangeToString(dateRange, dateRangeEnd));        
-        var reportRows = report.rows();
-
-        while(reportRows.hasNext()) {
-            var row = reportRows.next();
-            var locationId = [[campaignId, row["Id"]]];
-            var locationClicks = row['Clicks'];
-            var locationConverions = row['Conversions'];
-            var locationRevenue = row['ConversionValue'].replace(',','');
-            var locationCost = row['Cost'].replace(',','');
-            var locationBidModifier = (parseFloat(row['BidModifier']) / 100.0) + 1;
-            var locationRevenuePerClick = (locationClicks == 0 ? 0 : locationRevenue/locationClicks);
- 
-            if (locationConverions >= MIN_CONVERSIONS || locationCost >= HIGH_COST ) {
-                var newBidModifier = (locationRevenuePerClick / campaignRevenuePerClick)
-                var isIncreaseNeeded = (newBidModifier > locationBidModifier && locationBidModifier < MAX_BID_ADJUSTMENT);
-                var isDecreaseNeeded = (newBidModifier < locationBidModifier && locationBidModifier > MIN_BID_ADJUSTMENT);
-
-                if( isIncreaseNeeded || isDecreaseNeeded ) {
-                    var locationIterator = campaign.targeting().targetedLocations().withIds(locationId).get()
-                    if( locationIterator.hasNext()) {
-                        var location = locationIterator.next();
-                        if( isIncreaseNeeded ) {
-                            newBidModifier = Math.min(locationBidModifier + BID_INCREMENT, MAX_BID_ADJUSTMENT)
-                            location.setBidModifier(newBidModifier);
-                        } else if( isDecreaseNeeded ) {
-                            newBidModifier = Math.max(locationBidModifier - BID_INCREMENT, MIN_BID_ADJUSTMENT);
-                            location.setBidModifier(newBidModifier);
-                        }
-                    }
-                }
+            // Get campaign performance data
+            let campaignStats = getCampaignStats(campaignId, dateRange);
+            if (!campaignStats) {
+                Logger.log('No campaign stats found, skipping...');
+                continue;
             }
+
+            const { campaignRevenuePerClick } = campaignStats;
+            Logger.log(`Campaign revenue per click: ${campaignRevenuePerClick}`);
+
+            // Process location targets
+            let locationReport = AdsApp.report(
+                `SELECT Id, Clicks, Conversions, ConversionValue, Cost, BidModifier 
+                 FROM CAMPAIGN_LOCATION_TARGET_REPORT 
+                 WHERE Id > 0 AND CampaignId = ${campaignId} 
+                 ${formatReportDateRange(dateRange)}`
+            );
+
+            let rows = locationReport.rows();
+            if (!rows.hasNext()) {
+                Logger.log('No location targets found for this campaign');
+                continue;
+            }
+
+            while (rows.hasNext()) {
+                processLocationBidAdjustment(campaign, rows.next(), campaignRevenuePerClick);
+            }
+        } catch (error) {
+            Logger.log(`Error processing campaign ${campaignId}: ${error.message}`);
+            // Continue processing other campaigns
         }
     }
 }
 
+function getCampaignStats(campaignId, dateRange) {
+    const report = AdsApp.report(
+        `SELECT CampaignId, CampaignName, Clicks, ConversionValue 
+         FROM CAMPAIGN_PERFORMANCE_REPORT 
+         WHERE CampaignId = ${campaignId} 
+         AND CampaignStatus = 'ENABLED' 
+         ${formatReportDateRange(dateRange)}`
+    );
+
+    const row = report.rows().next();
+    if (!row) return null;
+
+    const clicks = parseInt(row['Clicks'], 10);
+    const revenue = parseFloat(row['ConversionValue'].replace(',', ''));
+    
+    return {
+        campaignName: row['CampaignName'],
+        campaignRevenuePerClick: clicks === 0 ? 0 : revenue / clicks
+    };
+}
+
+function processLocationBidAdjustment(campaign, row, campaignRevenuePerClick) {
+    try {
+        let locationId = [[campaign.getId(), row["Id"]]];
+        let clicks = parseInt(row['Clicks'], 10);
+        let conversions = parseInt(row['Conversions'], 10);
+        let revenue = parseFloat(row['ConversionValue'].replace(',', ''));
+        let cost = parseFloat(row['Cost'].replace(',', ''));
+        let currentBidModifier = (parseFloat(row['BidModifier']) / 100.0) + 1;
+        let locationRevenuePerClick = clicks === 0 ? 0 : revenue / clicks;
+
+        Logger.log(`Processing location ${row["Id"]} for campaign ${campaign.getName()}`);
+        Logger.log(`Current metrics - Clicks: ${clicks}, Conversions: ${conversions}, Cost: ${cost}`);
+
+        if (conversions >= CONFIG.MIN_CONVERSIONS || cost >= CONFIG.HIGH_COST) {
+            let targetBidModifier = locationRevenuePerClick / campaignRevenuePerClick;
+            let isIncreaseNeeded = targetBidModifier > currentBidModifier && currentBidModifier < CONFIG.MAX_BID_ADJUSTMENT;
+            let isDecreaseNeeded = targetBidModifier < currentBidModifier && currentBidModifier > CONFIG.MIN_BID_ADJUSTMENT;
+
+            if (isIncreaseNeeded || isDecreaseNeeded) {
+                let success = updateLocationBidModifier(campaign, locationId, currentBidModifier, isIncreaseNeeded);
+                if (success) {
+                    Logger.log(`Successfully updated bid modifier for location ${row["Id"]}`);
+                }
+            } else {
+                Logger.log(`No bid adjustment needed for location ${row["Id"]}`);
+            }
+        } else {
+            Logger.log(`Location ${row["Id"]} does not meet minimum thresholds`);
+        }
+    } catch (error) {
+        Logger.log(`Error processing location bid adjustment: ${error.message}`);
+        // Continue processing other locations
+    }
+}
+
+function updateLocationBidModifier(campaign, locationId, currentBidModifier, isIncrease) {
+    try {
+        let locationIterator = campaign.targeting().targetedLocations().withIds(locationId).get();
+        
+        if (!locationIterator.hasNext()) {
+            Logger.log(`Location not found for campaign ${campaign.getName()}, locationId: ${locationId}`);
+            return false;
+        }
+
+        let location = locationIterator.next();
+        let newBidModifier = isIncrease
+            ? Math.min(currentBidModifier + CONFIG.BID_INCREMENT, CONFIG.MAX_BID_ADJUSTMENT)
+            : Math.max(currentBidModifier - CONFIG.BID_INCREMENT, CONFIG.MIN_BID_ADJUSTMENT);
+
+        Logger.log(`Updating bid modifier from ${currentBidModifier} to ${newBidModifier}`);
+        location.setBidModifier(newBidModifier);
+        return true;
+    } catch (error) {
+        Logger.log(`Error updating location bid modifier: ${error.message}`);
+        return false;
+    }
+}
 
 //
 // Returns the CampaignIterator object
 //
-function getCampaignSelector(dateRange, dateRangeEnd, isShopping) {
-    var campaignSelector = isShopping ? AdWordsApp.shoppingCampaigns() : AdWordsApp.campaigns();
-
-    campaignSelector = campaignSelector
-        .forDateRange(dateRange, dateRangeEnd)
+function getCampaignSelector(selector, dateRange) {
+    let campaignSelector = selector
         .withCondition("Status = ENABLED")
-        .withCondition("LabelNames CONTAINS_ANY ['" + LABEL_PROCESSING + "']");
+        .withCondition(`LabelNames CONTAINS_ANY ['${CONFIG.LABEL_PROCESSING}']`);
 
-    if (LABEL_IGNORE.length > 0) {
+    if (CONFIG.LABEL_IGNORE) {
         campaignSelector = campaignSelector
-            .withCondition("LabelNames CONTAINS_NONE ['" + LABEL_IGNORE + "']");
+            .withCondition(`LabelNames CONTAINS_NONE ['${CONFIG.LABEL_IGNORE}']`);
     }
 
     return campaignSelector;
@@ -278,3 +330,32 @@ function dateRangeToString(dateRange, dateRangeEnd) {
              + dateRangeEnd.year.toString() + ("0" + dateRangeEnd.month).slice(-2) + ("0" + dateRangeEnd.day).slice(-2);
     }
   }
+
+// Add this helper function to format date ranges for reports
+function formatReportDateRange(dateRange) {
+    switch (dateRange) {
+        case 'LAST_30_DAYS':
+            return 'DURING LAST_30_DAYS';
+        case 'LAST_90_DAYS': {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 90);
+            return `DURING ${formatDate(startDate)},${formatDate(endDate)}`;
+        }
+        case 'LAST_YEAR': {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            return `DURING ${formatDate(startDate)},${formatDate(endDate)}`;
+        }
+        default:
+            throw new Error(`Unsupported date range: ${dateRange}`);
+    }
+}
+
+// Helper function to format dates as YYYYMMDD
+function formatDate(date) {
+    return date.getFullYear() +
+        String(date.getMonth() + 1).padStart(2, '0') +
+        String(date.getDate()).padStart(2, '0');
+}

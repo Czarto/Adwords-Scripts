@@ -1,10 +1,14 @@
-// Version: 1.0.2
+// Version: 4.0.0
+// Latest Source: https://github.com/Czarto/Adwords-Scripts/blob/master/shopping-setproductbid-to-adgroupbid.js
+//
+// This Google Ads Script will set product group bids to match their parent ad group's bid.
+// Useful for resetting product group bids to their ad group's default bid.
 
 /***********
 
 MIT License
 
-Copyright (c) 2018 Alex Czartoryski
+Copyright (c) 2018-2024 Alex Czartoryski
 https://business.czarto.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,68 +31,93 @@ SOFTWARE.
 
 **********/
 
-// CAMPAIGN FILTERS
-var CAMPAIGN_INCLUDE = ''; // Only include Adgroups and keywords in Campaigns with this text string in the name
-var CAMPAIGN_EXCLUDE = ''; // Exclude Adgroups and keywords in Campaigns with this text string in the name
+// Configuration
+const CONFIG = {
+    // Campaign filters - leave empty to process all campaigns
+    CAMPAIGN_INCLUDE: '', // Only include Adgroups in Campaigns with this text string in the name
+    CAMPAIGN_EXCLUDE: '', // Exclude Adgroups in Campaigns with this text string in the name
+};
 
-function main() { 
-  setProductGroupBidsToAdGroupBids();
+function main() {
+    try {
+        setProductGroupBidsToAdGroupBids();
+    } catch (error) {
+        Logger.log(`Error in main: ${error.message}`);
+        throw error;
+    }
 }
 
-//
-// Set product group bids to adGroup bids.
-//
+/**
+ * Sets product group bids to match their parent ad group's bid
+ */
 function setProductGroupBidsToAdGroupBids() {
-
-    var adGroupIterator = AdsApp.shoppingAdGroups()
-      .withCondition("Status = ENABLED")
-      .withCondition("CampaignStatus = ENABLED")
-      .withCondition("AdGroupStatus = ENABLED");
-    
-    if( CAMPAIGN_INCLUDE.length > 0 ) {
-        adGroupIterator = adGroupIterator.withCondition("CampaignName CONTAINS_IGNORE_CASE '" + CAMPAIGN_INCLUDE + "'");    
-    }
-
-    if( CAMPAIGN_EXCLUDE.length > 0 ) {
-        adGroupIterator = adGroupIterator.withCondition("CampaignName DOES_NOT_CONTAIN_IGNORE_CASE '" + CAMPAIGN_EXCLUDE + "'");
-    }
-    
-    adGroupIterator = adGroupIterator.get();
-
-    Logger.log('Total adGroups found : ' + adGroupIterator.totalNumEntities());
+    const adGroupIterator = getFilteredAdGroupIterator();
+    Logger.log(`Total adGroups found: ${adGroupIterator.totalNumEntities()}`);
 
     while (adGroupIterator.hasNext()) {
-      var adGroup = adGroupIterator.next();
-      var current_cpc = adGroup.bidding().getCpc();
-
-      //Logger.log(adGroup.getCampaign().getName() + ":" + adGroup.getName() + ' CPC:' + current_cpc);
-      
-      var productGroupIterator = adGroup.productGroups().get()
-      while (productGroupIterator.hasNext()) {
-        var productGroup = productGroupIterator.next();
+        let adGroup = adGroupIterator.next();
+        let currentCpc = adGroup.bidding().getCpc();
         
-        setProductGroupBid(productGroup, current_cpc);
-      }
+        processProductGroups(adGroup, currentCpc);
     }
 }
 
-//
-// Recursively set bids to product group and children
-//
-function setProductGroupBid(productGroup, bid) {
-
-    //Logger.log(productGroup.getValue() + " Current Bid:" + productGroup.getMaxCpc() + " New Bid:" + bid );
+/**
+ * Gets an iterator of ad groups based on campaign filters
+ */
+function getFilteredAdGroupIterator() {
+    let iterator = AdsApp.shoppingAdGroups()
+        .withCondition("Status = ENABLED")
+        .withCondition("CampaignStatus = ENABLED")
+        .withCondition("AdGroupStatus = ENABLED");
     
-    if( productGroup.isExcluded() ) {
-        // Do nothing. Product Group has no bid.
+    if (CONFIG.CAMPAIGN_INCLUDE) {
+        iterator = iterator.withCondition(`CampaignName CONTAINS_IGNORE_CASE '${CONFIG.CAMPAIGN_INCLUDE}'`);
+    }
+
+    if (CONFIG.CAMPAIGN_EXCLUDE) {
+        iterator = iterator.withCondition(`CampaignName DOES_NOT_CONTAIN_IGNORE_CASE '${CONFIG.CAMPAIGN_EXCLUDE}'`);
+    }
+    
+    return iterator.get();
+}
+
+/**
+ * Processes all product groups for a given ad group
+ */
+function processProductGroups(adGroup, bid) {
+    const productGroupIterator = adGroup.productGroups().get();
+    
+    while (productGroupIterator.hasNext()) {
+        let productGroup = productGroupIterator.next();
+        setProductGroupBid(productGroup, bid);
+    }
+}
+
+/**
+ * Recursively sets bids to product group and its children
+ * @param {ProductGroup} productGroup - The product group to process
+ * @param {number} bid - The bid to set
+ */
+function setProductGroupBid(productGroup, bid) {
+    if (productGroup.isExcluded()) {
+        return; // Skip excluded product groups
+    }
+
+    const children = productGroup.children().get();
+    
+    if (children.hasNext()) {
+        // Process all children recursively
+        while (children.hasNext()) {
+            let child = children.next();
+            setProductGroupBid(child, bid);
+        }
     } else {
-        var children = productGroup.children().get();
-        if( children.hasNext()) {
-            while (children.hasNext()) {
-                setProductGroupBid(children.next(), bid);
-            }
-        } else {
+        // Set bid for leaf nodes (product groups without children)
+        let currentBid = productGroup.getMaxCpc();
+        if (currentBid !== bid) {
+            Logger.log(`Setting bid for ${productGroup.getValue()} from ${currentBid} to ${bid}`);
             productGroup.setMaxCpc(bid);
         }
-    }   
+    }
 }
